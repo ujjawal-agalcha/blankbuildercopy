@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Undo2,
   Redo2,
@@ -8,12 +8,16 @@ import {
   Download,
   FileSpreadsheet,
   Save,
+  FolderOpen,
   Magnet,
-  Sparkles,
   Scissors,
+  Check,
 } from 'lucide-react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useGarmentStore } from '../../store/useGarmentStore';
+import { useDesignStore } from '../../store/useDesignStore';
+import { useMaterialStore } from '../../store/useMaterialStore';
+import { getTemplateById } from '../../garments/catalog';
 import { Unit } from '../../types/cad';
 
 interface TopNavbarProps {
@@ -42,25 +46,80 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenExport, onOpenTechPa
     activeSize,
   } = useGarmentStore();
 
+  const openFileRef = useRef<HTMLInputElement>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(projectName);
   const [saveToast, setSaveToast] = useState(false);
+  const [loadToast, setLoadToast] = useState(false);
 
+  // Save complete project state to localStorage
   const handleSave = () => {
     try {
       const state = {
+        version: '1.0.0',
         projectName,
         templateId: template.id,
         activeSize,
         measurements: useGarmentStore.getState().measurements,
+        pieces: useGarmentStore.getState().pieces,
+        layers: useDesignStore.getState().layers,
+        assets: useDesignStore.getState().assets,
+        material: useMaterialStore.getState().material,
         timestamp: new Date().toISOString(),
       };
       localStorage.setItem('threadcad_project', JSON.stringify(state));
       setSaveToast(true);
       setTimeout(() => setSaveToast(false), 2000);
     } catch (e) {
-      console.error(e);
+      console.error('Save failed:', e);
     }
+  };
+
+  // Open / Restore project from JSON file or localStorage
+  const handleOpenClick = () => {
+    openFileRef.current?.click();
+  };
+
+  const handleFileLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.templateId) {
+          const t = getTemplateById(data.templateId);
+          useGarmentStore.setState({
+            projectName: data.projectName || file.name.replace(/\.[^/.]+$/, ''),
+            template: t,
+            activeSize: data.activeSize || 'M',
+            measurements: data.measurements || {},
+            pieces: data.pieces || t.generatePatterns(data.measurements || {}),
+          });
+
+          if (data.layers) {
+            useDesignStore.setState({
+              layers: data.layers,
+              assets: data.assets || [],
+              activeLayerId: data.layers[0]?.id || null,
+            });
+          }
+
+          if (data.material || data.fabric) {
+            useMaterialStore.setState({
+              material: data.material || data.fabric,
+            });
+          }
+
+          setLoadToast(true);
+          setTimeout(() => setLoadToast(false), 2000);
+        }
+      } catch (err) {
+        console.error('Failed to parse project JSON:', err);
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -185,7 +244,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenExport, onOpenTechPa
         </button>
       </div>
 
-      {/* RIGHT: Units, Snap, Tech Pack, Export */}
+      {/* RIGHT: Units, Snap, Save, Open, Tech Pack, Export */}
       <div className="flex items-center gap-2">
         {/* Grid Snap */}
         <button
@@ -218,21 +277,32 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenExport, onOpenTechPa
           ))}
         </div>
 
-        {/* Tech Pack Spec Sheet Button */}
+        {/* Open Project (JSON) */}
+        <input
+          type="file"
+          ref={openFileRef}
+          onChange={handleFileLoad}
+          accept="application/json"
+          className="hidden"
+        />
         <button
-          onClick={onOpenTechPack}
-          className="px-2.5 py-1 rounded border border-cad-border bg-cad-panelLight text-xs text-cad-text hover:text-white hover:border-cad-borderLight flex items-center gap-1.5 transition shadow-sm"
-          title="Open Manufacturing Tech Pack & Spec Sheet"
+          onClick={handleOpenClick}
+          className="p-1.5 rounded border border-cad-border hover:bg-cad-panelLight text-cad-text hover:text-white transition relative"
+          title="Open Project (JSON)"
         >
-          <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
-          <span className="font-medium">Tech Pack</span>
+          <FolderOpen className="w-3.5 h-3.5" />
+          {loadToast && (
+            <span className="absolute -bottom-8 right-0 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+              Loaded!
+            </span>
+          )}
         </button>
 
         {/* Save button */}
         <button
           onClick={handleSave}
           className="p-1.5 rounded border border-cad-border hover:bg-cad-panelLight text-cad-text hover:text-white transition relative"
-          title="Save Project"
+          title="Save Project to Browser Storage"
         >
           <Save className="w-3.5 h-3.5" />
           {saveToast && (
@@ -240,6 +310,16 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenExport, onOpenTechPa
               Saved!
             </span>
           )}
+        </button>
+
+        {/* Tech Pack Spec Sheet Button */}
+        <button
+          onClick={onOpenTechPack}
+          className="px-2.5 py-1 rounded border border-cad-border bg-cad-panelLight text-xs text-cad-text hover:text-white hover:border-cad-borderLight flex items-center gap-1.5 transition shadow-sm"
+          title="Open Manufacturing Tech Pack & Spec Sheet"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
+          <span className="font-medium hidden sm:inline">Tech Pack</span>
         </button>
 
         {/* Export Button */}
@@ -254,4 +334,3 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenExport, onOpenTechPa
     </header>
   );
 };
-

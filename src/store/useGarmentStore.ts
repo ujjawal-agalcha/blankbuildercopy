@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PatternPiece, ControlPoint } from '../types/cad';
+import { PatternPiece, ControlPoint, Edge2D } from '../types/cad';
 import { GarmentTemplate, StandardSize } from '../types/garment';
 import { GARMENT_TEMPLATES, getTemplateById } from '../garments/catalog';
 
@@ -30,11 +30,15 @@ interface GarmentState {
   // Direct CAD editing
   updatePiecePosition: (pieceId: string, x: number, y: number) => void;
   updatePiecePoint: (pieceId: string, pointId: string, newCoords: { x: number; y: number }) => void;
+  addPointToEdge: (pieceId: string, edgeId: string, coords: { x: number; y: number }) => void;
+  deletePoint: (pieceId: string, pointId: string) => void;
   updateEdgeControlPoint: (pieceId: string, edgeId: string, cpIndex: number, newCoords: { x: number; y: number }) => void;
   addNotchToEdge: (pieceId: string, edgeId: string, distanceRatio: number) => void;
   duplicatePiece: (pieceId: string) => void;
+  deletePiece: (pieceId: string) => void;
   mirrorPiece: (pieceId: string) => void;
   rotatePiece: (pieceId: string, angleDelta: number) => void;
+  resetPatternLayout: () => void;
   updateControlHandle: (pieceId: string, pointId: string, handleType: 'in' | 'out', coords: { x: number; y: number }) => void;
   togglePieceSeamAllowance: (pieceId: string) => void;
   setPieceSeamAllowanceWidth: (pieceId: string, widthMm: number) => void;
@@ -43,6 +47,10 @@ interface GarmentState {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+
+  // Project persistence
+  saveProjectToStorage: () => void;
+  loadProjectFromStorage: () => boolean;
 }
 
 const initialTemplate = GARMENT_TEMPLATES[1]; // Oversized T-shirt
@@ -105,10 +113,10 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
     const { pieces: oldPieces, measurements: oldMeasurements, activeSize: oldSize, undoStack } = get();
     const newPieces = template.generatePatterns(newMeasurements);
 
-    // Preserve piece positions
+    // Preserve piece positions and rotations
     const adjustedPieces = newPieces.map((np) => {
       const match = oldPieces.find((op) => op.id === np.id);
-      return match ? { ...np, position: match.position } : np;
+      return match ? { ...np, position: match.position, rotation: match.rotation } : np;
     });
 
     set({
@@ -127,10 +135,10 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
     const newMeasurements = { ...measurements, [id]: value };
     const newPieces = template.generatePatterns(newMeasurements);
 
-    // Preserve positions
+    // Preserve piece positions and rotations
     const adjustedPieces = newPieces.map((np) => {
       const match = oldPieces.find((op) => op.id === np.id);
-      return match ? { ...np, position: match.position } : np;
+      return match ? { ...np, position: match.position, rotation: match.rotation } : np;
     });
 
     set({
@@ -148,7 +156,7 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
     const newPieces = template.generatePatterns(newMeasurements);
     const adjustedPieces = newPieces.map((np) => {
       const match = oldPieces.find((op) => op.id === np.id);
-      return match ? { ...np, position: match.position } : np;
+      return match ? { ...np, position: match.position, rotation: match.rotation } : np;
     });
     set({ measurements: newMeasurements, pieces: adjustedPieces });
   },
@@ -166,6 +174,68 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
       return {
         ...piece,
         points: piece.points.map((pt) => (pt.id === pointId ? { ...pt, ...newCoords } : pt)),
+      };
+    });
+
+    set({
+      pieces: updated,
+      undoStack: [...undoStack, { pieces, measurements, activeSize }],
+      redoStack: [],
+      canUndo: true,
+      canRedo: false,
+    });
+  },
+
+  addPointToEdge: (pieceId, edgeId, coords) => {
+    const { pieces, measurements, activeSize, undoStack } = get();
+    const newPtId = `pt_${Date.now()}`;
+    const newPt: ControlPoint = { id: newPtId, x: coords.x, y: coords.y, type: 'corner' };
+
+    const updated = pieces.map((piece) => {
+      if (piece.id !== pieceId) return piece;
+      const edgeIndex = piece.edges.findIndex((e) => e.id === edgeId);
+      if (edgeIndex === -1) return piece;
+
+      const oldEdge = piece.edges[edgeIndex];
+      const edge1: Edge2D = {
+        ...oldEdge,
+        id: `${oldEdge.id}_a`,
+        toPointId: newPtId,
+        type: 'line',
+      };
+      const edge2: Edge2D = {
+        ...oldEdge,
+        id: `${oldEdge.id}_b`,
+        fromPointId: newPtId,
+        type: 'line',
+      };
+
+      const newEdges = [...piece.edges];
+      newEdges.splice(edgeIndex, 1, edge1, edge2);
+
+      return {
+        ...piece,
+        points: [...piece.points, newPt],
+        edges: newEdges,
+      };
+    });
+
+    set({
+      pieces: updated,
+      undoStack: [...undoStack, { pieces, measurements, activeSize }],
+      redoStack: [],
+      canUndo: true,
+      canRedo: false,
+    });
+  },
+
+  deletePoint: (pieceId, pointId) => {
+    const { pieces, measurements, activeSize, undoStack } = get();
+    const updated = pieces.map((piece) => {
+      if (piece.id !== pieceId || piece.points.length <= 3) return piece;
+      return {
+        ...piece,
+        points: piece.points.filter((pt) => pt.id !== pointId),
       };
     });
 
@@ -231,11 +301,16 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
     set({ pieces: [...pieces, cloned] });
   },
 
+  deletePiece: (pieceId) => {
+    const { pieces } = get();
+    if (pieces.length <= 1) return; // Keep at least one piece
+    set({ pieces: pieces.filter((p) => p.id !== pieceId) });
+  },
+
   mirrorPiece: (pieceId) => {
     set((state) => ({
       pieces: state.pieces.map((piece) => {
         if (piece.id !== pieceId) return piece;
-        // Invert X coordinates
         return {
           ...piece,
           points: piece.points.map((pt) => ({ ...pt, x: -pt.x })),
@@ -257,6 +332,12 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
         p.id === pieceId ? { ...p, rotation: (p.rotation + angleDelta) % 360 } : p
       ),
     }));
+  },
+
+  resetPatternLayout: () => {
+    const { template, measurements } = get();
+    const freshPieces = template.generatePatterns(measurements);
+    set({ pieces: freshPieces });
   },
 
   updateControlHandle: (pieceId, pointId, handleType, coords) => {
@@ -326,5 +407,42 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
       canRedo: newRedoStack.length > 0,
     });
   },
-}));
 
+  saveProjectToStorage: () => {
+    const state = get();
+    const data = {
+      projectName: state.projectName,
+      templateId: state.template.id,
+      activeSize: state.activeSize,
+      measurements: state.measurements,
+      pieces: state.pieces,
+    };
+    try {
+      localStorage.setItem('threadcad_project', JSON.stringify(data));
+    } catch (e) {
+      console.warn('Storage save error:', e);
+    }
+  },
+
+  loadProjectFromStorage: () => {
+    try {
+      const raw = localStorage.getItem('threadcad_project');
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (data.templateId) {
+        const t = getTemplateById(data.templateId);
+        set({
+          projectName: data.projectName || 'My Project',
+          template: t,
+          activeSize: data.activeSize || 'M',
+          measurements: data.measurements || {},
+          pieces: data.pieces || t.generatePatterns(data.measurements || {}),
+        });
+        return true;
+      }
+    } catch (e) {
+      console.error('Error loading project from storage:', e);
+    }
+    return false;
+  },
+}));

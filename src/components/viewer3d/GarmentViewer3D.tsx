@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -8,30 +8,43 @@ import { useSceneStore } from '../../store/useSceneStore';
 import { useGarmentStore } from '../../store/useGarmentStore';
 import { useMaterialStore } from '../../store/useMaterialStore';
 import {
-  Camera,
   RotateCcw,
   Sun,
   Moon,
-  Layers,
+  Sparkles,
+  Camera,
+  Maximize2,
   ZoomIn,
   ZoomOut,
-  Sparkles,
-  Maximize2,
 } from 'lucide-react';
 
 export const GarmentViewer3D: React.FC = () => {
-  const { settings, toggleWireframe, toggleSeamLines } = useSceneStore();
-  const { template, setTemplate } = useGarmentStore();
+  const { settings } = useSceneStore();
+  const { template } = useGarmentStore();
   const { material, setColor } = useMaterialStore();
 
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  // Model selection: 'tee-t5' (Classic Draped) or 'tee-oversize-1' (Oversized Heavyweight)
-  const isOversized = template.id.includes('oversized') || template.id.includes('boxy');
-  const [selectedModel, setSelectedModel] = useState<'tee-t5' | 'tee-oversize-1'>(
-    isOversized ? 'tee-oversize-1' : 'tee-t5'
-  );
+  // Determine appropriate 3D model based on active template
+  const getModelForTemplate = (templateId: string): string => {
+    const id = templateId.toLowerCase();
+    if (id.includes('hoodie')) return 'hoodie';
+    if (id.includes('pants') || id.includes('jogger') || id.includes('trouser') || id.includes('jeans')) return 'moto-pants';
+    if (id.includes('polo')) return 'polo';
+    if (id.includes('shirt') && !id.includes('tshirt')) return 'shirt-short-sleeve';
+    if (id.includes('long_sleeve') || id.includes('longsleeve')) return 'tee-longsleeve';
+    if (id.includes('oversized') || id.includes('boxy')) return 'tee-oversize-1';
+    if (id.includes('flat')) return 'tee-t12';
+    return 'tee-t5';
+  };
+
+  const [activeModel, setActiveModel] = useState<string>(getModelForTemplate(template.id));
+
+  // Update 3D model when user switches garment in catalog
+  useEffect(() => {
+    setActiveModel(getModelForTemplate(template.id));
+  }, [template.id]);
 
   // Studio Theme (Clean Studio Light vs Dark Charcoal Studio)
   const [studioTheme, setStudioTheme] = useState<'light' | 'dark'>('dark');
@@ -81,7 +94,7 @@ export const GarmentViewer3D: React.FC = () => {
 
     const dataUrl = canvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `BLANKBUILDER_MOCKUP_${Date.now()}.png`;
+    link.download = `THREADCAD_3D_MOCKUP_${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
   };
@@ -118,138 +131,86 @@ export const GarmentViewer3D: React.FC = () => {
         />
 
         <StudioLighting />
-        <BlankGarment3D modelType={selectedModel} />
+        <BlankGarment3D modelType={activeModel} />
       </Canvas>
 
-      {/* TOP FLOATING CONTROLS: Model Switcher & Theme */}
+      {/* TOP FLOATING CONTROLS: Model Badge & Theme */}
       <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
-        {/* Model Switcher Pills */}
-        <div className="flex items-center bg-cad-panel/85 backdrop-blur-md border border-cad-border p-1 rounded-lg shadow-xl text-xs">
-          <button
-            onClick={() => {
-              setSelectedModel('tee-t5');
-              setTemplate('tshirt_regular');
-            }}
-            className={`px-3 py-1 rounded font-medium transition ${
-              selectedModel === 'tee-t5'
-                ? 'bg-cad-accent text-black font-semibold shadow-sm'
-                : 'text-cad-textMuted hover:text-white'
-            }`}
-          >
-            Classic Draped
-          </button>
-          <button
-            onClick={() => {
-              setSelectedModel('tee-oversize-1');
-              setTemplate('tshirt_oversized');
-            }}
-            className={`px-3 py-1 rounded font-medium transition ${
-              selectedModel === 'tee-oversize-1'
-                ? 'bg-cad-accent text-black font-semibold shadow-sm'
-                : 'text-cad-textMuted hover:text-white'
-            }`}
-          >
-            Oversized Drop-Shoulder
-          </button>
+        <div className="flex items-center gap-2 bg-cad-panel/85 backdrop-blur-md border border-cad-border px-3 py-1.5 rounded-lg shadow-xl text-xs">
+          <span className="w-2 h-2 rounded-full bg-cad-accent animate-pulse" />
+          <span className="font-semibold text-cad-text uppercase tracking-wider">{template.name}</span>
+          <span className="text-[10px] text-cad-textMuted font-mono border-l border-cad-border pl-2">
+            3D: {activeModel}
+          </span>
         </div>
 
-        {/* Studio Lighting Theme Toggle */}
+        {/* Studio Theme Switcher */}
         <button
-          onClick={() => setStudioTheme(studioTheme === 'dark' ? 'light' : 'dark')}
-          className="p-2 rounded-lg bg-cad-panel/85 backdrop-blur-md border border-cad-border text-cad-text hover:text-cad-accent transition shadow-xl"
+          onClick={() => setStudioTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          className="p-1.5 bg-cad-panel/85 backdrop-blur-md border border-cad-border hover:border-cad-accent rounded-lg text-cad-textMuted hover:text-white transition shadow-xl"
           title={studioTheme === 'dark' ? 'Switch to Light Studio' : 'Switch to Dark Studio'}
         >
-          {studioTheme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {studioTheme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
         </button>
       </div>
 
-      {/* TOP RIGHT: High-Res 4K Snapshot Button */}
+      {/* TOP RIGHT: 4K Mockup Export */}
       <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
         <button
           onClick={handleSnapshot}
-          className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs flex items-center gap-1.5 shadow-xl transition"
-          title="Download High-Resolution Product Render"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-cad-panel/85 backdrop-blur-md border border-cad-border hover:border-cad-accent text-cad-text hover:text-white rounded-lg text-xs font-semibold shadow-xl transition"
         >
-          <Camera className="w-4 h-4" />
-          <span>Capture Mockup</span>
+          <Camera className="w-3.5 h-3.5 text-cad-accent" />
+          <span>Capture 4K Mockup</span>
         </button>
       </div>
 
-      {/* FLOATING CAMERA ANGLE CONTROLS (BlankBuilder Style) */}
-      <div className="absolute top-1/2 -translate-y-1/2 left-3 flex flex-col gap-1.5 bg-cad-panel/85 backdrop-blur-md border border-cad-border p-1 rounded-lg shadow-xl z-10">
+      {/* FLOATING CAMERA ANGLE PRESET PILLS (Bottom Left) */}
+      <div className="absolute bottom-16 left-3 flex items-center bg-cad-panel/85 backdrop-blur-md border border-cad-border p-1 rounded-lg shadow-xl gap-1 text-xs z-10">
+        {(['front', 'back', 'left', 'right'] as const).map((angle) => (
+          <button
+            key={angle}
+            onClick={() => handleViewPreset(angle)}
+            className="px-2.5 py-1 text-cad-textMuted hover:text-white hover:bg-cad-panelLight rounded font-medium capitalize transition"
+          >
+            {angle}
+          </button>
+        ))}
         <button
           onClick={() => handleViewPreset('front')}
-          className="px-2.5 py-1.5 rounded text-xs font-mono font-medium text-cad-text hover:text-cad-accent hover:bg-cad-panelLight transition text-center"
-          title="Front View (F)"
-        >
-          Front
-        </button>
-        <button
-          onClick={() => handleViewPreset('back')}
-          className="px-2.5 py-1.5 rounded text-xs font-mono font-medium text-cad-text hover:text-cad-accent hover:bg-cad-panelLight transition text-center"
-          title="Back View (B)"
-        >
-          Back
-        </button>
-        <button
-          onClick={() => handleViewPreset('left')}
-          className="px-2.5 py-1.5 rounded text-xs font-mono font-medium text-cad-text hover:text-cad-accent hover:bg-cad-panelLight transition text-center"
-          title="Left Sleeve (L)"
-        >
-          Left
-        </button>
-        <button
-          onClick={() => handleViewPreset('right')}
-          className="px-2.5 py-1.5 rounded text-xs font-mono font-medium text-cad-text hover:text-cad-accent hover:bg-cad-panelLight transition text-center"
-          title="Right Sleeve (R)"
-        >
-          Right
-        </button>
-        <div className="h-px bg-cad-border my-0.5" />
-        <button
-          onClick={() => {
-            if (controlsRef.current) {
-              controlsRef.current.reset();
-              controlsRef.current.object.position.set(0, -5, 115);
-              controlsRef.current.target.set(0, -5, 0);
-              controlsRef.current.update();
-            }
-          }}
-          className="p-1.5 rounded text-cad-textDim hover:text-white hover:bg-cad-panelLight transition flex items-center justify-center"
-          title="Reset Camera Position"
+          className="p-1 text-cad-textMuted hover:text-white hover:bg-cad-panelLight rounded transition ml-1"
+          title="Reset Camera"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* BOTTOM FLOATING COLOR PALETTE BAR */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-cad-panel/90 backdrop-blur-md border border-cad-border px-3 py-2 rounded-xl shadow-2xl z-10">
-        <span className="text-[11px] font-semibold text-cad-textMuted uppercase mr-1">
-          Color:
+      {/* FLOATING CURATED COLORWAY PALETTE BAR (Bottom Center) */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-cad-panel/90 backdrop-blur-md border border-cad-border px-3 py-2 rounded-xl shadow-2xl z-10">
+        <span className="text-[10px] font-semibold text-cad-textMuted uppercase tracking-wider mr-1">
+          Dye
         </span>
-        {blankColors.map((c) => {
-          const isSelected = material.baseColor.toLowerCase() === c.hex.toLowerCase();
-          return (
-            <button
-              key={c.hex}
-              onClick={() => setColor(c.hex)}
-              style={{ backgroundColor: c.hex }}
-              className={`w-6 h-6 rounded-full border transition transform hover:scale-110 shadow-md ${
-                isSelected
-                  ? 'border-cad-accent ring-2 ring-cad-accent/50 scale-110'
-                  : 'border-cad-border hover:border-cad-borderLight'
-              }`}
-              title={c.name}
-            />
-          );
-        })}
-        {/* Custom Color Input */}
-        <div className="flex items-center pl-1.5 border-l border-cad-border ml-1">
+        {blankColors.map((c) => (
+          <button
+            key={c.name}
+            onClick={() => setColor(c.hex)}
+            style={{ backgroundColor: c.hex }}
+            className={`w-5 h-5 rounded-full border transition transform hover:scale-125 ${
+              material.baseColor === c.hex
+                ? 'border-cad-accent ring-2 ring-cad-accent/40 scale-110'
+                : 'border-white/10 hover:border-white/40'
+            }`}
+            title={`${c.name} (${c.hex})`}
+          />
+        ))}
+
+        {/* Custom Hex Color Picker */}
+        <div className="pl-1.5 border-l border-cad-border/60 flex items-center">
           <input
             type="color"
             value={material.baseColor}
             onChange={(e) => setColor(e.target.value)}
-            className="w-6 h-6 rounded-full border border-cad-border cursor-pointer bg-transparent"
+            className="w-5 h-5 rounded-full border border-white/20 cursor-pointer bg-transparent"
             title="Custom Dye Color"
           />
         </div>

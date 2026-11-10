@@ -52,7 +52,7 @@ describe('CAD Geometry Engine', () => {
     });
 
     const pieces = template.generatePatterns({});
-    expect(pieces.length).toBe(4); // Front, Back, Sleeve, Neck Rib
+    expect(pieces.length).toBe(5); // Front, Back, Left Sleeve, Right Sleeve, Neck Rib
 
     const frontBody = pieces.find((p) => p.id === 'piece_front_body')!;
     expect(frontBody).toBeDefined();

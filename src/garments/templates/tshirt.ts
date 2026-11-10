@@ -45,37 +45,26 @@ export function createTShirtTemplate(
     const halfHem = (m.hemWidth || defaultMeasurements.hemWidth) / 2;
     const collarH = m.collarHeight || defaultMeasurements.collarHeight;
 
-    const shoulderSlope = 42; // mm drop
-    const armholeDepth = Math.max(200, halfChest * 0.42);
+    const shoulderSlope = fit === 'drop-shoulder' || fit === 'oversized' ? 50 : 42;
+    const armholeDepth = Math.max(210, halfChest * 0.44);
 
     // ==========================================
-    // 1. FRONT BODY (Centered on 2D table at X: 150, Y: 100)
+    // 1. FRONT BODY PANEL
     // ==========================================
     const frontPoints: ControlPoint[] = [
-      // 0: Center front neck
       { id: 'fn_cf', x: 0, y: neckFront, type: 'smooth' },
-      // 1: High shoulder point (HSP) Left
       { id: 'fn_hsp_l', x: -halfNeck, y: 0, type: 'corner' },
-      // 2: Low shoulder point Left
       { id: 'fn_lsp_l', x: -halfShoulder, y: shoulderSlope, type: 'corner' },
-      // 3: Armpit Left
       { id: 'fn_armpit_l', x: -halfChest / 2, y: armholeDepth, type: 'smooth' },
-      // 4: Bottom Hem Left
       { id: 'fn_hem_l', x: -halfHem, y: length, type: 'corner' },
-      // 5: Center Front Hem
       { id: 'fn_hem_cf', x: 0, y: length, type: 'corner' },
-      // 6: Bottom Hem Right
       { id: 'fn_hem_r', x: halfHem, y: length, type: 'corner' },
-      // 7: Armpit Right
       { id: 'fn_armpit_r', x: halfChest / 2, y: armholeDepth, type: 'smooth' },
-      // 8: Low shoulder point Right
       { id: 'fn_lsp_r', x: halfShoulder, y: shoulderSlope, type: 'corner' },
-      // 9: High shoulder point Right
       { id: 'fn_hsp_r', x: halfNeck, y: 0, type: 'corner' },
     ];
 
     const frontEdges: Edge2D[] = [
-      // HSP_R -> CF Neck (Cubic Bezier)
       {
         id: 'e_f_neck_r',
         fromPointId: 'fn_hsp_r',
@@ -87,7 +76,6 @@ export function createTShirtTemplate(
           { x: halfNeck * 0.2, y: neckFront * 0.95 },
         ],
       },
-      // CF Neck -> HSP_L (Cubic Bezier)
       {
         id: 'e_f_neck_l',
         fromPointId: 'fn_cf',
@@ -99,9 +87,7 @@ export function createTShirtTemplate(
           { x: -halfNeck * 0.6, y: neckFront * 0.4 },
         ],
       },
-      // HSP_L -> LSP_L (Shoulder Seam Left)
       { id: 'e_f_shoulder_l', fromPointId: 'fn_hsp_l', toPointId: 'fn_lsp_l', type: 'line', name: 'Shoulder Seam L' },
-      // LSP_L -> Armpit_L (Armhole curve Left)
       {
         id: 'e_f_armhole_l',
         fromPointId: 'fn_lsp_l',
@@ -113,15 +99,10 @@ export function createTShirtTemplate(
           { x: -halfChest / 2 + 15, y: armholeDepth - 15 },
         ],
       },
-      // Armpit_L -> Hem_L (Side Seam Left)
       { id: 'e_f_side_l', fromPointId: 'fn_armpit_l', toPointId: 'fn_hem_l', type: 'line', name: 'Side Seam L' },
-      // Hem_L -> Hem_CF
       { id: 'e_f_hem_l', fromPointId: 'fn_hem_l', toPointId: 'fn_hem_cf', type: 'line', name: 'Front Hem L' },
-      // Hem_CF -> Hem_R
       { id: 'e_f_hem_r', fromPointId: 'fn_hem_cf', toPointId: 'fn_hem_r', type: 'line', name: 'Front Hem R' },
-      // Hem_R -> Armpit_R (Side Seam Right)
       { id: 'e_f_side_r', fromPointId: 'fn_hem_r', toPointId: 'fn_armpit_r', type: 'line', name: 'Side Seam R' },
-      // Armpit_R -> LSP_R (Armhole curve Right)
       {
         id: 'e_f_armhole_r',
         fromPointId: 'fn_armpit_r',
@@ -133,16 +114,8 @@ export function createTShirtTemplate(
           { x: halfShoulder - 10, y: shoulderSlope + (armholeDepth - shoulderSlope) * 0.5 },
         ],
       },
-      // LSP_R -> HSP_R (Shoulder Seam Right)
       { id: 'e_f_shoulder_r', fromPointId: 'fn_lsp_r', toPointId: 'fn_hsp_r', type: 'line', name: 'Shoulder Seam R' },
     ];
-
-    const frontGrain: Grainline = {
-      start: { x: 0, y: 150 },
-      end: { x: 0, y: length - 100 },
-      hasArrowBothEnds: true,
-      angle: 90,
-    };
 
     const frontPiece: PatternPiece = {
       id: 'piece_front_body',
@@ -150,7 +123,7 @@ export function createTShirtTemplate(
       category: 'body',
       points: frontPoints,
       edges: frontEdges,
-      position: { x: 420, y: 100 },
+      position: { x: 380, y: 100 },
       rotation: 0,
       mirror: false,
       cutQuantity: 1,
@@ -162,13 +135,13 @@ export function createTShirtTemplate(
         { id: 'n_f_arm_r', edgeId: 'e_f_armhole_r', distanceRatio: 0.5, type: 'single', depth: 5 },
       ],
       darts: [],
-      grainline: frontGrain,
+      grainline: { start: { x: 0, y: 150 }, end: { x: 0, y: length - 100 }, hasArrowBothEnds: true, angle: 90 },
       internalLines: [],
       color: '#3b82f6',
     };
 
     // ==========================================
-    // 2. BACK BODY (Placed next to Front at X: 950)
+    // 2. BACK BODY PANEL
     // ==========================================
     const backPoints: ControlPoint[] = [
       { id: 'bn_cb', x: 0, y: neckBack, type: 'smooth' },
@@ -242,7 +215,7 @@ export function createTShirtTemplate(
       category: 'body',
       points: backPoints,
       edges: backEdges,
-      position: { x: 1000, y: 100 },
+      position: { x: 1040, y: 100 },
       rotation: 0,
       mirror: false,
       cutQuantity: 1,
@@ -260,54 +233,42 @@ export function createTShirtTemplate(
     };
 
     // ==========================================
-    // 3. SLEEVE (Symmetrical sleeve piece, cut 2)
+    // 3. LEFT SLEEVE PIECE
     // ==========================================
     const sleeveCapHeight = 120;
     const sleeveBicep = armholeDepth * 0.95;
 
-    const sleevePoints: ControlPoint[] = [
-      // 0: Sleeve Cap Top
-      { id: 'sl_top', x: 0, y: 0, type: 'smooth' },
-      // 1: Cap Right Underarm
-      { id: 'sl_under_r', x: sleeveBicep, y: sleeveCapHeight, type: 'corner' },
-      // 2: Cuff Right
-      { id: 'sl_cuff_r', x: halfSleeveOpen, y: sleeveLen, type: 'corner' },
-      // 3: Cuff Center
-      { id: 'sl_cuff_center', x: 0, y: sleeveLen, type: 'smooth' },
-      // 4: Cuff Left
-      { id: 'sl_cuff_l', x: -halfSleeveOpen, y: sleeveLen, type: 'corner' },
-      // 5: Cap Left Underarm
-      { id: 'sl_under_l', x: -sleeveBicep, y: sleeveCapHeight, type: 'corner' },
+    const sleeveLeftPoints: ControlPoint[] = [
+      { id: 'sll_top', x: 0, y: 0, type: 'smooth' },
+      { id: 'sll_under_r', x: sleeveBicep, y: sleeveCapHeight, type: 'corner' },
+      { id: 'sll_cuff_r', x: halfSleeveOpen, y: sleeveLen, type: 'corner' },
+      { id: 'sll_cuff_center', x: 0, y: sleeveLen, type: 'smooth' },
+      { id: 'sll_cuff_l', x: -halfSleeveOpen, y: sleeveLen, type: 'corner' },
+      { id: 'sll_under_l', x: -sleeveBicep, y: sleeveCapHeight, type: 'corner' },
     ];
 
-    const sleeveEdges: Edge2D[] = [
-      // Top -> Underarm R (S-curve for sleeve cap)
+    const sleeveLeftEdges: Edge2D[] = [
       {
-        id: 'e_sl_cap_r',
-        fromPointId: 'sl_top',
-        toPointId: 'sl_under_r',
+        id: 'e_sll_cap_r',
+        fromPointId: 'sll_top',
+        toPointId: 'sll_under_r',
         type: 'cubic-bezier',
-        name: 'Sleeve Cap R',
+        name: 'Sleeve Cap Front',
         controlPoints: [
           { x: sleeveBicep * 0.45, y: sleeveCapHeight * 0.05 },
           { x: sleeveBicep * 0.75, y: sleeveCapHeight * 0.8 },
         ],
       },
-      // Underarm R -> Cuff R (Inseam Right)
-      { id: 'e_sl_inseam_r', fromPointId: 'sl_under_r', toPointId: 'sl_cuff_r', type: 'line', name: 'Sleeve Inseam R' },
-      // Cuff R -> Cuff Center
-      { id: 'e_sl_hem_r', fromPointId: 'sl_cuff_r', toPointId: 'sl_cuff_center', type: 'line', name: 'Sleeve Hem R' },
-      // Cuff Center -> Cuff L
-      { id: 'e_sl_hem_l', fromPointId: 'sl_cuff_center', toPointId: 'sl_cuff_l', type: 'line', name: 'Sleeve Hem L' },
-      // Cuff L -> Underarm L (Inseam Left)
-      { id: 'e_sl_inseam_l', fromPointId: 'sl_cuff_l', toPointId: 'sl_under_l', type: 'line', name: 'Sleeve Inseam L' },
-      // Underarm L -> Top (S-curve for sleeve cap)
+      { id: 'e_sll_inseam_r', fromPointId: 'sll_under_r', toPointId: 'sll_cuff_r', type: 'line', name: 'Inseam R' },
+      { id: 'e_sll_hem_r', fromPointId: 'sll_cuff_r', toPointId: 'sll_cuff_center', type: 'line', name: 'Cuff Hem R' },
+      { id: 'e_sll_hem_l', fromPointId: 'sll_cuff_center', toPointId: 'sll_cuff_l', type: 'line', name: 'Cuff Hem L' },
+      { id: 'e_sll_inseam_l', fromPointId: 'sll_cuff_l', toPointId: 'sll_under_l', type: 'line', name: 'Inseam L' },
       {
-        id: 'e_sl_cap_l',
-        fromPointId: 'sl_under_l',
-        toPointId: 'sl_top',
+        id: 'e_sll_cap_l',
+        fromPointId: 'sll_under_l',
+        toPointId: 'sll_top',
         type: 'cubic-bezier',
-        name: 'Sleeve Cap L',
+        name: 'Sleeve Cap Back',
         controlPoints: [
           { x: -sleeveBicep * 0.75, y: sleeveCapHeight * 0.8 },
           { x: -sleeveBicep * 0.45, y: sleeveCapHeight * 0.05 },
@@ -315,22 +276,22 @@ export function createTShirtTemplate(
       },
     ];
 
-    const sleevePiece: PatternPiece = {
-      id: 'piece_sleeve',
-      name: 'Sleeve (Pair)',
+    const sleeveLeftPiece: PatternPiece = {
+      id: 'piece_sleeve_left',
+      name: 'Left Sleeve',
       category: 'sleeve',
-      points: sleevePoints,
-      edges: sleeveEdges,
-      position: { x: 1550, y: 150 },
+      points: sleeveLeftPoints,
+      edges: sleeveLeftEdges,
+      position: { x: 1650, y: 100 },
       rotation: 0,
-      mirror: true,
-      cutQuantity: 2,
+      mirror: false,
+      cutQuantity: 1,
       fabricCode: 'FAB_COTTON_JERSEY',
       defaultSeamAllowance: 10,
       seamAllowanceEnabled: true,
       notches: [
-        { id: 'n_sl_cap_center', edgeId: 'e_sl_cap_r', distanceRatio: 0.0, type: 'single', depth: 4 },
-        { id: 'n_sl_back_double', edgeId: 'e_sl_cap_l', distanceRatio: 0.5, type: 'double', depth: 4 },
+        { id: 'n_sll_cap_center', edgeId: 'e_sll_cap_r', distanceRatio: 0.0, type: 'single', depth: 4 },
+        { id: 'n_sll_back_double', edgeId: 'e_sll_cap_l', distanceRatio: 0.5, type: 'double', depth: 4 },
       ],
       darts: [],
       grainline: { start: { x: 0, y: 40 }, end: { x: 0, y: sleeveLen - 40 }, hasArrowBothEnds: true, angle: 90 },
@@ -339,14 +300,78 @@ export function createTShirtTemplate(
     };
 
     // ==========================================
-    // 4. NECK RIB (Rib Knit Band)
+    // 4. RIGHT SLEEVE PIECE
     // ==========================================
-    const neckCircumference = (halfNeck * 2 * Math.PI * 0.65) * 0.85; // 85% stretch ratio
+    const sleeveRightPoints: ControlPoint[] = [
+      { id: 'slr_top', x: 0, y: 0, type: 'smooth' },
+      { id: 'slr_under_r', x: sleeveBicep, y: sleeveCapHeight, type: 'corner' },
+      { id: 'slr_cuff_r', x: halfSleeveOpen, y: sleeveLen, type: 'corner' },
+      { id: 'slr_cuff_center', x: 0, y: sleeveLen, type: 'smooth' },
+      { id: 'slr_cuff_l', x: -halfSleeveOpen, y: sleeveLen, type: 'corner' },
+      { id: 'slr_under_l', x: -sleeveBicep, y: sleeveCapHeight, type: 'corner' },
+    ];
+
+    const sleeveRightEdges: Edge2D[] = [
+      {
+        id: 'e_slr_cap_r',
+        fromPointId: 'slr_top',
+        toPointId: 'slr_under_r',
+        type: 'cubic-bezier',
+        name: 'Sleeve Cap Back',
+        controlPoints: [
+          { x: sleeveBicep * 0.45, y: sleeveCapHeight * 0.05 },
+          { x: sleeveBicep * 0.75, y: sleeveCapHeight * 0.8 },
+        ],
+      },
+      { id: 'e_slr_inseam_r', fromPointId: 'slr_under_r', toPointId: 'slr_cuff_r', type: 'line', name: 'Inseam R' },
+      { id: 'e_slr_hem_r', fromPointId: 'slr_cuff_r', toPointId: 'slr_cuff_center', type: 'line', name: 'Cuff Hem R' },
+      { id: 'e_slr_hem_l', fromPointId: 'slr_cuff_center', toPointId: 'slr_cuff_l', type: 'line', name: 'Cuff Hem L' },
+      { id: 'e_slr_inseam_l', fromPointId: 'slr_cuff_l', toPointId: 'slr_under_l', type: 'line', name: 'Inseam L' },
+      {
+        id: 'e_slr_cap_l',
+        fromPointId: 'slr_under_l',
+        toPointId: 'slr_top',
+        type: 'cubic-bezier',
+        name: 'Sleeve Cap Front',
+        controlPoints: [
+          { x: -sleeveBicep * 0.75, y: sleeveCapHeight * 0.8 },
+          { x: -sleeveBicep * 0.45, y: sleeveCapHeight * 0.05 },
+        ],
+      },
+    ];
+
+    const sleeveRightPiece: PatternPiece = {
+      id: 'piece_sleeve_right',
+      name: 'Right Sleeve',
+      category: 'sleeve',
+      points: sleeveRightPoints,
+      edges: sleeveRightEdges,
+      position: { x: 1650, y: 550 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 1,
+      fabricCode: 'FAB_COTTON_JERSEY',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [
+        { id: 'n_slr_cap_center', edgeId: 'e_slr_cap_r', distanceRatio: 0.0, type: 'single', depth: 4 },
+        { id: 'n_slr_front_single', edgeId: 'e_slr_cap_l', distanceRatio: 0.5, type: 'single', depth: 4 },
+      ],
+      darts: [],
+      grainline: { start: { x: 0, y: 40 }, end: { x: 0, y: sleeveLen - 40 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#10b981',
+    };
+
+    // ==========================================
+    // 5. NECK RIB BAND (Rib Knit Collar)
+    // ==========================================
+    const neckCircumference = (halfNeck * 2 * Math.PI * 0.65) * 0.85;
     const ribWidth = neckCircumference / 2;
     const ribPoints: ControlPoint[] = [
       { id: 'rp_tl', x: -ribWidth, y: 0, type: 'corner' },
       { id: 'rp_tr', x: ribWidth, y: 0, type: 'corner' },
-      { id: 'rp_br', x: ribWidth, y: collarH * 2, type: 'corner' }, // Folded in half
+      { id: 'rp_br', x: ribWidth, y: collarH * 2, type: 'corner' },
       { id: 'rp_bl', x: -ribWidth, y: collarH * 2, type: 'corner' },
     ];
 
@@ -363,7 +388,7 @@ export function createTShirtTemplate(
       category: 'collar',
       points: ribPoints,
       edges: ribEdges,
-      position: { x: 700, y: 880 },
+      position: { x: 710, y: 920 },
       rotation: 0,
       mirror: false,
       cutQuantity: 1,
@@ -379,7 +404,7 @@ export function createTShirtTemplate(
       color: '#f59e0b',
     };
 
-    return [frontPiece, backPiece, sleevePiece, collarPiece];
+    return [frontPiece, backPiece, sleeveLeftPiece, sleeveRightPiece, collarPiece];
   };
 
   const defaultSewing: SewingRelationship[] = [
@@ -428,59 +453,36 @@ export function createTShirtTemplate(
       enabled: true,
     },
     {
-      id: 'sew_sleeve_armhole_f',
-      name: 'Sleeve to Front Armhole',
-      pieceAId: 'piece_sleeve',
-      edgeAId: 'e_sl_cap_r',
-      pieceBId: 'piece_front_body',
-      edgeBId: 'e_f_armhole_l',
+      id: 'sew_armhole_l',
+      name: 'Set-in Sleeve Left',
+      pieceAId: 'piece_front_body',
+      edgeAId: 'e_f_armhole_l',
+      pieceBId: 'piece_sleeve_left',
+      edgeBId: 'e_sll_cap_r',
       seamType: 'overlock',
       flipped: false,
       enabled: true,
     },
     {
-      id: 'sew_sleeve_armhole_b',
-      name: 'Sleeve to Back Armhole',
-      pieceAId: 'piece_sleeve',
-      edgeAId: 'e_sl_cap_l',
-      pieceBId: 'piece_back_body',
-      edgeBId: 'e_b_armhole_l',
-      seamType: 'overlock',
-      flipped: false,
-      enabled: true,
-    },
-    {
-      id: 'sew_sleeve_underarm',
-      name: 'Sleeve Underarm Inseam',
-      pieceAId: 'piece_sleeve',
-      edgeAId: 'e_sl_inseam_l',
-      pieceBId: 'piece_sleeve',
-      edgeBId: 'e_sl_inseam_r',
-      seamType: 'overlock',
-      flipped: false,
-      enabled: true,
-    },
-    {
-      id: 'sew_neck_rib',
-      name: 'Rib to Neckline',
-      pieceAId: 'piece_neck_rib',
-      edgeAId: 'e_rib_bottom',
-      pieceBId: 'piece_front_body',
-      edgeBId: 'e_f_neck_l',
+      id: 'sew_armhole_r',
+      name: 'Set-in Sleeve Right',
+      pieceAId: 'piece_front_body',
+      edgeAId: 'e_f_armhole_r',
+      pieceBId: 'piece_sleeve_right',
+      edgeBId: 'e_slr_cap_l',
       seamType: 'overlock',
       flipped: false,
       enabled: true,
     },
   ];
 
-  // Professional grading rules across XS to XXL
   const gradingRules: SizeGradingRule[] = [
-    { size: 'XS', measurementDeltas: { chestWidth: -50, bodyLength: -30, shoulderWidth: -30, sleeveLength: -15, sleeveOpening: -10 } },
-    { size: 'S', measurementDeltas: { chestWidth: -25, bodyLength: -15, shoulderWidth: -15, sleeveLength: -8, sleeveOpening: -5 } },
-    { size: 'M', measurementDeltas: {} }, // Base
-    { size: 'L', measurementDeltas: { chestWidth: 30, bodyLength: 15, shoulderWidth: 15, sleeveLength: 10, sleeveOpening: 8 } },
-    { size: 'XL', measurementDeltas: { chestWidth: 60, bodyLength: 30, shoulderWidth: 30, sleeveLength: 20, sleeveOpening: 16 } },
-    { size: 'XXL', measurementDeltas: { chestWidth: 95, bodyLength: 45, shoulderWidth: 45, sleeveLength: 30, sleeveOpening: 24 } },
+    { size: 'XS' as StandardSize, measurementDeltas: { chestWidth: -50, bodyLength: -30, shoulderWidth: -30, sleeveLength: -15, hemWidth: -50 } },
+    { size: 'S' as StandardSize, measurementDeltas: { chestWidth: -25, bodyLength: -15, shoulderWidth: -15, sleeveLength: -8, hemWidth: -25 } },
+    { size: 'M' as StandardSize, measurementDeltas: {} },
+    { size: 'L' as StandardSize, measurementDeltas: { chestWidth: 35, bodyLength: 15, shoulderWidth: 15, sleeveLength: 10, hemWidth: 35 } },
+    { size: 'XL' as StandardSize, measurementDeltas: { chestWidth: 70, bodyLength: 30, shoulderWidth: 30, sleeveLength: 18, hemWidth: 70 } },
+    { size: 'XXL' as StandardSize, measurementDeltas: { chestWidth: 105, bodyLength: 45, shoulderWidth: 45, sleeveLength: 25, hemWidth: 105 } },
   ];
 
   return {

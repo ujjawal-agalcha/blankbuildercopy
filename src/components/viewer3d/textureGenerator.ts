@@ -1,31 +1,68 @@
 import * as THREE from 'three';
 import { ArtworkLayer } from '../../types/artwork';
 import { FabricMaterial } from '../../types/material';
+import { BlankPiece } from './blankBuilderLoader';
+import { imageCache } from '../../services/imageCache';
 
 /**
- * BlankBuilder exact UV piece coordinates in 2048x2048 sheet:
- * - front body: Center X=528, Center Y=1281 (Chest anchor is ~1120)
- * - back body: Center X=1520, Center Y=1280 (Upper back anchor is ~1120)
- * - sleeveR: Center X=528, Center Y=315
- * - sleeveL: Center X=1520, Center Y=315
- * - label: Center X=1024, Center Y=212
- * 
- * pxPerCm = 16 => 1 mm = 1.6 pixels.
+ * Fallback piece centers in 2048x2048 texture sheet coordinate space:
+ * Used if specific model piece bounds are not provided.
  */
-export const BLANK_PIECE_CENTERS = {
-  'front-chest': { x: 528, y: 1120 },
-  'front-center': { x: 528, y: 1250 },
-  'front-pocket': { x: 420, y: 1050 },
-  'back-full': { x: 1520, y: 1250 },
-  'back-neck': { x: 1520, y: 920 },
-  'sleeve-left': { x: 1520, y: 315 },
-  'sleeve-right': { x: 528, y: 315 },
-  'inside-label': { x: 1024, y: 212 },
+const DEFAULT_PIECE_CENTERS: Record<string, { x: number; y: number; anchorYOffset?: number }> = {
+  front: { x: 528, y: 1280, anchorYOffset: -160 }, // Front chest anchor is ~1120
+  back: { x: 1520, y: 1280, anchorYOffset: -160 }, // Back neck/upper back is ~1120
+  sleeveR: { x: 528, y: 315 },
+  sleeveL: { x: 1520, y: 315 },
+  pocket: { x: 256, y: 1850 },
+  hoodR: { x: 1408, y: 253 },
+  hoodL: { x: 1843, y: 253 },
+  thighL: { x: 1792, y: 462 },
+  thighR: { x: 1422, y: 462 },
+  label: { x: 1024, y: 212 },
 };
+
+/**
+ * Maps a pattern piece ID or placement zone to the corresponding 3D model piece ID
+ */
+export function mapPieceIdToModelPiece(pieceId?: string, zone?: string): string {
+  const p = (pieceId || '').toLowerCase();
+  const z = (zone || '').toLowerCase();
+
+  // 1. Direct piece ID matching
+  if (p.includes('front') || p.includes('front_body') || p.includes('front_leg')) {
+    if (p.includes('leg')) return 'thighL';
+    return 'front';
+  }
+  if (p.includes('back') || p.includes('back_body') || p.includes('back_leg')) {
+    if (p.includes('leg')) return 'seatL';
+    return 'back';
+  }
+  if (p.includes('sleeve_left') || p.includes('sleevel')) return 'sleeveL';
+  if (p.includes('sleeve_right') || p.includes('sleever')) return 'sleeveR';
+  if (p.includes('sleeve')) return 'sleeveL';
+  if (p.includes('pocket')) return 'pocket';
+  if (p.includes('hood_left') || p.includes('hoodl')) return 'hoodL';
+  if (p.includes('hood_right') || p.includes('hoodr') || p.includes('hood')) return 'hoodR';
+  if (p.includes('collar') || p.includes('neck')) return 'neckF';
+
+  // 2. Fallback to placement zone
+  if (z.includes('back')) return 'back';
+  if (z.includes('sleeve-left')) return 'sleeveL';
+  if (z.includes('sleeve-right')) return 'sleeveR';
+  if (z.includes('pocket')) return 'pocket';
+  if (z.includes('hood')) return 'hoodR';
+  if (z.includes('thigh') || z.includes('pant-left')) return 'thighL';
+  if (z.includes('pant-right')) return 'thighR';
+  if (z.includes('inside-label')) return 'label';
+
+  return 'front';
+}
 
 export function createGarmentDynamicTexture(
   material: FabricMaterial,
-  artworkLayers: ArtworkLayer[]
+  artworkLayers: ArtworkLayer[],
+  modelPieces?: BlankPiece[],
+  pxPerCm: number = 16
 ): THREE.CanvasTexture {
   const size = 2048;
   const canvas = document.createElement('canvas');
@@ -35,7 +72,7 @@ export function createGarmentDynamicTexture(
 
   if (!ctx) {
     const t = new THREE.CanvasTexture(canvas);
-    t.flipY = false;
+    t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }
 
@@ -43,10 +80,10 @@ export function createGarmentDynamicTexture(
   ctx.fillStyle = material.baseColor;
   ctx.fillRect(0, 0, size, size);
 
-  // 2. Add subtle fabric micro-grain texture
+  // 2. Add realistic subtle fabric micro-grain texture
   const imgData = ctx.getImageData(0, 0, size, size);
   const data = imgData.data;
-  const noiseScale = material.pbr.roughness * 6;
+  const noiseScale = (material.pbr.roughness || 0.8) * 5;
 
   for (let y = 0; y < size; y += 4) {
     for (let x = 0; x < size; x += 4) {
@@ -59,44 +96,72 @@ export function createGarmentDynamicTexture(
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // 3. Render Artwork Layers onto appropriate pattern piece zones
+  // 3. Build fast lookup map for model pieces
+  const pieceMap = new Map<string, BlankPiece>();
+  if (modelPieces) {
+    modelPieces.forEach((p) => pieceMap.set(p.id, p));
+  }
+
+  const pxPerMm = pxPerCm / 10;
+
+  // 4. Render Artwork Layers onto appropriate pattern piece zones
   artworkLayers.forEach((layer) => {
     if (!layer.visible) return;
 
-    const baseAnchor = BLANK_PIECE_CENTERS[layer.zone as keyof typeof BLANK_PIECE_CENTERS] || BLANK_PIECE_CENTERS['front-chest'];
+    const modelTargetId = mapPieceIdToModelPiece(layer.pieceId, layer.zone);
+    const pieceDef = pieceMap.get(modelTargetId);
+
+    let centerX: number;
+    let centerY: number;
+
+    if (pieceDef && pieceDef.bounds) {
+      centerX = (pieceDef.bounds.minX + pieceDef.bounds.maxX) / 2;
+      centerY = (pieceDef.bounds.minY + pieceDef.bounds.maxY) / 2;
+
+      // For front/back body: anchor chest/upper back slightly higher than pure geometric center
+      if (modelTargetId === 'front' || modelTargetId === 'back') {
+        const height = pieceDef.bounds.maxY - pieceDef.bounds.minY;
+        centerY -= height * 0.12; // Standard chest height
+      }
+    } else {
+      const fallback = DEFAULT_PIECE_CENTERS[modelTargetId] || DEFAULT_PIECE_CENTERS['front'];
+      centerX = fallback.x;
+      centerY = fallback.y + (fallback.anchorYOffset || 0);
+    }
+
+    // Offset in pixels from mm coordinates
+    const posX = centerX + layer.x * pxPerMm;
+    const posY = centerY + layer.y * pxPerMm;
 
     ctx.save();
-
-    // 1mm = 1.6px in BlankBuilder's 2048 space
-    const posX = baseAnchor.x + layer.x * 1.6;
-    const posY = baseAnchor.y + layer.y * 1.6;
-
     ctx.translate(posX, posY);
     ctx.rotate((layer.rotation * Math.PI) / 180);
-    ctx.scale(layer.scale, layer.scale);
-    ctx.globalAlpha = layer.opacity;
+
+    // Apply scale and intentional user flipping
+    const scaleX = layer.scale * (layer.flipH ? -1 : 1);
+    const scaleY = layer.scale * (layer.flipV ? -1 : 1);
+    ctx.scale(scaleX, scaleY);
+    ctx.globalAlpha = Math.max(0, Math.min(1, layer.opacity));
 
     if (layer.type === 'text' && layer.text) {
-      const fontSize = (layer.fontSize || 36) * 2.8;
+      const fontSize = (layer.fontSize || 36) * (pxPerMm * 1.5);
       ctx.font = `bold ${fontSize}px "${layer.fontFamily || 'Inter'}", -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
       // Manufacturing Technique Styling
       if (layer.technique === 'puff-print') {
-        // High density raised 3D puff print shadow
         ctx.shadowColor = 'rgba(0,0,0,0.45)';
         ctx.shadowBlur = 8;
         ctx.shadowOffsetX = 3;
         ctx.shadowOffsetY = 4;
       } else if (layer.technique === 'embroidery') {
-        // Satin embroidery stitch bevel
         ctx.shadowColor = 'rgba(0,0,0,0.35)';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetX = 1.5;
         ctx.shadowOffsetY = 2;
       } else if (layer.technique === 'screen-print') {
-        ctx.shadowColor = 'rgba(0,0,0,0.15)';
+        ctx.shadowColor = 'rgba(0,0,0,0.18)';
         ctx.shadowBlur = 2;
         ctx.shadowOffsetX = 0.5;
         ctx.shadowOffsetY = 1;
@@ -108,22 +173,34 @@ export function createGarmentDynamicTexture(
       // Embroidery thread highlight pass
       if (layer.technique === 'embroidery') {
         ctx.shadowColor = 'transparent';
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
         ctx.lineWidth = 1.5;
         ctx.strokeText(layer.text, 0, 0);
       }
     } else if (layer.type === 'image' && layer.imageUrl) {
-      const img = new Image();
-      img.src = layer.imageUrl;
-      if (img.complete && img.naturalWidth > 0) {
-        const targetW = 450;
-        const targetH = (img.naturalHeight / img.naturalWidth) * targetW;
+      const img = imageCache.getImageSync(layer.imageUrl);
+      if (img && img.naturalWidth > 0) {
+        // Physical dimensions in pixels
+        const wMm = layer.width || 220;
+        const hMm = layer.height || (wMm / (layer.aspectRatio || 1));
+        const targetW = wMm * pxPerMm;
+        const targetH = hMm * pxPerMm;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
         if (layer.technique === 'puff-print') {
-          ctx.shadowColor = 'rgba(0,0,0,0.4)';
+          ctx.shadowColor = 'rgba(0,0,0,0.45)';
           ctx.shadowBlur = 10;
           ctx.shadowOffsetX = 3;
           ctx.shadowOffsetY = 5;
+        } else if (layer.technique === 'screen-print') {
+          ctx.shadowColor = 'rgba(0,0,0,0.15)';
+          ctx.shadowBlur = 2;
+          ctx.shadowOffsetX = 0.5;
+          ctx.shadowOffsetY = 1;
         }
+
         ctx.drawImage(img, -targetW / 2, -targetH / 2, targetW, targetH);
       }
     }
@@ -132,7 +209,7 @@ export function createGarmentDynamicTexture(
   });
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.flipY = false; // Required for exact UV alignment with model.bin
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.needsUpdate = true;
