@@ -7,9 +7,26 @@ import { Point2D, PatternPiece, ControlPoint, Edge2D } from '../../types/cad';
 import { generateSeamAllowanceContour, contourToSvgPath } from '../../geometry/offset';
 import { sampleEdgePoints, calculateEdgeLength, getPointOnEdgeAtRatio, getPieceBoundingBox } from '../../geometry/measurements';
 import { formatUnit } from '../../geometry/converters';
+import { Rulers } from './Rulers';
 
 export const PatternEditor2D: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        setContainerSize({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
   const {
     viewport,
@@ -536,6 +553,15 @@ export const PatternEditor2D: React.FC = () => {
           );
         })}
       </svg>
+
+      {/* On-Canvas Metric Rulers (Top & Left) with Cursor Tracker */}
+      <Rulers
+        width={containerSize.width}
+        height={containerSize.height}
+        viewport={viewport}
+        cursorCoords={useEditorStore.getState().cursorCoords}
+        unit={unit}
+      />
     </div>
   );
 };

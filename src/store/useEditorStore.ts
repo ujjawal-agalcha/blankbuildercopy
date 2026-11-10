@@ -56,7 +56,7 @@ interface EditorState {
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
-  viewMode: 'split',
+  viewMode: '3d-only',
   setViewMode: (viewMode) => set({ viewMode }),
 
   activeTab: 'design',

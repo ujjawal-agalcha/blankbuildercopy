@@ -9,6 +9,7 @@ export type PlacementZone =
   | 'hood-center'
   | 'pocket-left'
   | 'pocket-right'
+  | 'inside-label'
   | 'pant-left-thigh'
   | 'pant-right-thigh';
 

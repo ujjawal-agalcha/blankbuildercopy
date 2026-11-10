@@ -30,6 +30,11 @@ interface GarmentState {
   // Direct CAD editing
   updatePiecePosition: (pieceId: string, x: number, y: number) => void;
   updatePiecePoint: (pieceId: string, pointId: string, newCoords: { x: number; y: number }) => void;
+  updateEdgeControlPoint: (pieceId: string, edgeId: string, cpIndex: number, newCoords: { x: number; y: number }) => void;
+  addNotchToEdge: (pieceId: string, edgeId: string, distanceRatio: number) => void;
+  duplicatePiece: (pieceId: string) => void;
+  mirrorPiece: (pieceId: string) => void;
+  rotatePiece: (pieceId: string, angleDelta: number) => void;
   updateControlHandle: (pieceId: string, pointId: string, handleType: 'in' | 'out', coords: { x: number; y: number }) => void;
   togglePieceSeamAllowance: (pieceId: string) => void;
   setPieceSeamAllowanceWidth: (pieceId: string, widthMm: number) => void;
@@ -171,6 +176,87 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
       canUndo: true,
       canRedo: false,
     });
+  },
+
+  updateEdgeControlPoint: (pieceId, edgeId, cpIndex, newCoords) => {
+    set((state) => ({
+      pieces: state.pieces.map((piece) => {
+        if (piece.id !== pieceId) return piece;
+        return {
+          ...piece,
+          edges: piece.edges.map((edge) => {
+            if (edge.id !== edgeId || !edge.controlPoints) return edge;
+            const updatedCps = [...edge.controlPoints];
+            updatedCps[cpIndex] = newCoords;
+            return { ...edge, controlPoints: updatedCps };
+          }),
+        };
+      }),
+    }));
+  },
+
+  addNotchToEdge: (pieceId, edgeId, distanceRatio) => {
+    const newNotchId = `notch_${Date.now()}`;
+    set((state) => ({
+      pieces: state.pieces.map((piece) => {
+        if (piece.id !== pieceId) return piece;
+        return {
+          ...piece,
+          notches: [
+            ...piece.notches,
+            {
+              id: newNotchId,
+              edgeId,
+              distanceRatio: Math.max(0.05, Math.min(0.95, distanceRatio)),
+              type: 'single',
+              depth: 5,
+            },
+          ],
+        };
+      }),
+    }));
+  },
+
+  duplicatePiece: (pieceId) => {
+    const { pieces } = get();
+    const source = pieces.find((p) => p.id === pieceId);
+    if (!source) return;
+    const newId = `${source.id}_copy_${Date.now().toString().slice(-4)}`;
+    const cloned: PatternPiece = {
+      ...source,
+      id: newId,
+      name: `${source.name} (Copy)`,
+      position: { x: source.position.x + 80, y: source.position.y + 80 },
+    };
+    set({ pieces: [...pieces, cloned] });
+  },
+
+  mirrorPiece: (pieceId) => {
+    set((state) => ({
+      pieces: state.pieces.map((piece) => {
+        if (piece.id !== pieceId) return piece;
+        // Invert X coordinates
+        return {
+          ...piece,
+          points: piece.points.map((pt) => ({ ...pt, x: -pt.x })),
+          edges: piece.edges.map((edge) => {
+            if (!edge.controlPoints) return edge;
+            return {
+              ...edge,
+              controlPoints: edge.controlPoints.map((cp) => ({ ...cp, x: -cp.x })),
+            };
+          }),
+        };
+      }),
+    }));
+  },
+
+  rotatePiece: (pieceId, angleDelta) => {
+    set((state) => ({
+      pieces: state.pieces.map((p) =>
+        p.id === pieceId ? { ...p, rotation: (p.rotation + angleDelta) % 360 } : p
+      ),
+    }));
   },
 
   updateControlHandle: (pieceId, pointId, handleType, coords) => {

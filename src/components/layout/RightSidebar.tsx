@@ -99,6 +99,7 @@ export const RightSidebar: React.FC = () => {
     { id: 'back-neck', name: 'Back Neck Yoke' },
     { id: 'sleeve-left', name: 'Left Sleeve' },
     { id: 'sleeve-right', name: 'Right Sleeve' },
+    { id: 'inside-label', name: 'Inside Neck Label' },
     { id: 'hood-center', name: 'Hood Center' },
   ];
 
@@ -494,32 +495,34 @@ export const RightSidebar: React.FC = () => {
             {/* PBR & Physics Properties */}
             <div className="pt-3 border-t border-cad-border space-y-2">
               <span className="text-xs font-semibold text-cad-text uppercase tracking-wider block">
-                PBR Surface & Weave Specs
+                Fabric Draping & Texture (BlankBuilder)
               </span>
               <div className="space-y-1 bg-cad-panelLight/40 p-2.5 rounded border border-cad-border">
                 <SliderInput
-                  label="Surface Roughness"
-                  value={material.pbr.roughness}
-                  min={0.1}
-                  max={1.0}
+                  label="Cloth Wrinkles & Relief"
+                  description="Adjust depth of cloth folds, natural gravity wrinkles, and seam creases"
+                  value={material.pbr.normalScale}
+                  min={0.0}
+                  max={2.0}
                   step={0.05}
+                  onChange={(v) => updatePbr({ normalScale: v })}
+                />
+                <SliderInput
+                  label="Fabric Matte / Roughness"
+                  description="Cotton jersey matte absorption vs synthetic luster"
+                  value={material.pbr.roughness}
+                  min={0.2}
+                  max={1.0}
+                  step={0.02}
                   onChange={(v) => updatePbr({ roughness: v })}
                 />
                 <SliderInput
-                  label="Fabric Sheen / Luster"
+                  label="Micro-Sheen / Luster"
                   value={material.pbr.sheen}
                   min={0.0}
                   max={1.0}
                   step={0.05}
                   onChange={(v) => updatePbr({ sheen: v })}
-                />
-                <SliderInput
-                  label="Weave Normal Depth"
-                  value={material.pbr.normalScale}
-                  min={0.1}
-                  max={2.0}
-                  step={0.1}
-                  onChange={(v) => updatePbr({ normalScale: v })}
                 />
                 <SliderInput
                   label="Fabric Weight"
