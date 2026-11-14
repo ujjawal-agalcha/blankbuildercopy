@@ -121,6 +121,76 @@ export function getPieceBoundingBox(piece: PatternPiece): {
   };
 }
 
+/**
+ * Calculates the combined world bounding box of all pattern pieces,
+ * taking into account each piece's (x, y) cutting table position and rotation.
+ */
+export function getAllPiecesWorldBoundingBox(pieces: PatternPiece[]): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+} {
+  if (!pieces || pieces.length === 0) {
+    return { minX: 0, minY: 0, maxX: 1000, maxY: 1000, width: 1000, height: 1000 };
+  }
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  pieces.forEach((piece) => {
+    const rad = ((piece.rotation || 0) * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    const transformPoint = (px: number, py: number) => {
+      const rx = px * cos - py * sin;
+      const ry = px * sin + py * cos;
+      return {
+        x: piece.position.x + rx,
+        y: piece.position.y + ry,
+      };
+    };
+
+    piece.points.forEach((p) => {
+      const wp = transformPoint(p.x, p.y);
+      minX = Math.min(minX, wp.x);
+      minY = Math.min(minY, wp.y);
+      maxX = Math.max(maxX, wp.x);
+      maxY = Math.max(maxY, wp.y);
+    });
+
+    piece.edges.forEach((edge) => {
+      if (edge.controlPoints) {
+        edge.controlPoints.forEach((cp) => {
+          const wcp = transformPoint(cp.x, cp.y);
+          minX = Math.min(minX, wcp.x);
+          minY = Math.min(minY, wcp.y);
+          maxX = Math.max(maxX, wcp.x);
+          maxY = Math.max(maxY, wcp.y);
+        });
+      }
+    });
+  });
+
+  if (minX === Infinity) {
+    return { minX: 0, minY: 0, maxX: 1000, maxY: 1000, width: 1000, height: 1000 };
+  }
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
 export function getPointOnEdgeAtRatio(
   edge: Edge2D,
   points: ControlPoint[],

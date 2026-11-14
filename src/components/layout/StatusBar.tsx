@@ -85,9 +85,9 @@ export const StatusBar: React.FC = () => {
           </button>
 
           <button
-            onClick={resetViewport}
+            onClick={() => useEditorStore.getState().triggerFitAll()}
             className="p-1 hover:text-cad-accent ml-1"
-            title="Reset Zoom (Fit to Screen)"
+            title="Fit All Pattern Pieces (Fit to Screen)"
           >
             <RotateCcw className="w-3 h-3" />
           </button>

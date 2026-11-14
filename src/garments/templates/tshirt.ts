@@ -215,7 +215,7 @@ export function createTShirtTemplate(
       category: 'body',
       points: backPoints,
       edges: backEdges,
-      position: { x: 1040, y: 100 },
+      position: { x: 1020, y: 100 },
       rotation: 0,
       mirror: false,
       cutQuantity: 1,
@@ -282,7 +282,7 @@ export function createTShirtTemplate(
       category: 'sleeve',
       points: sleeveLeftPoints,
       edges: sleeveLeftEdges,
-      position: { x: 1650, y: 100 },
+      position: { x: 260, y: 900 },
       rotation: 0,
       mirror: false,
       cutQuantity: 1,
@@ -346,7 +346,7 @@ export function createTShirtTemplate(
       category: 'sleeve',
       points: sleeveRightPoints,
       edges: sleeveRightEdges,
-      position: { x: 1650, y: 550 },
+      position: { x: 740, y: 900 },
       rotation: 0,
       mirror: true,
       cutQuantity: 1,
@@ -388,7 +388,7 @@ export function createTShirtTemplate(
       category: 'collar',
       points: ribPoints,
       edges: ribEdges,
-      position: { x: 710, y: 920 },
+      position: { x: 1180, y: 900 },
       rotation: 0,
       mirror: false,
       cutQuantity: 1,
@@ -497,7 +497,507 @@ export function createTShirtTemplate(
     measurements: measurementsList,
     gradingRules,
     defaultFabricCode: 'FAB_COTTON_JERSEY',
+    modelId: 'tee-t5',
     generatePatterns,
     defaultSewing,
+  };
+}
+
+/**
+ * Generates an authentic Tank Top pattern with scoop front,
+ * racer/scoop back, neck binding rib, and left/right armhole bindings.
+ */
+export function createTankTemplate(
+  id: string,
+  name: string,
+  fit: 'regular' | 'slim' | 'relaxed' | 'cropped',
+  description: string
+): GarmentTemplate {
+  const base = createTShirtTemplate(id, name, fit as any, description, {
+    chestWidth: 480,
+    bodyLength: 700,
+    shoulderWidth: 340,
+    sleeveLength: 0,
+    sleeveOpening: 0,
+    neckWidth: 200,
+    neckDepthFront: 140,
+    neckDepthBack: 55,
+    hemWidth: 480,
+    collarHeight: 20,
+  });
+
+  const generatePatterns = (m: Record<string, number>): PatternPiece[] => {
+    const halfChest = (m.chestWidth || 480) / 2;
+    const length = m.bodyLength || 700;
+    const halfShoulder = (m.shoulderWidth || 340) / 2;
+    const halfNeck = (m.neckWidth || 200) / 2;
+    const neckFront = m.neckDepthFront || 140;
+    const neckBack = m.neckDepthBack || 55;
+    const armholeDepth = Math.max(240, halfChest * 0.55);
+
+    // Front Tank Body
+    const frontPoints: ControlPoint[] = [
+      { id: 'tn_f_neck', x: 0, y: neckFront, type: 'smooth' },
+      { id: 'tn_f_hsp_l', x: -halfNeck, y: 0, type: 'corner' },
+      { id: 'tn_f_lsp_l', x: -halfShoulder, y: 35, type: 'corner' },
+      { id: 'tn_f_armpit_l', x: -halfChest, y: armholeDepth, type: 'smooth' },
+      { id: 'tn_f_hem_l', x: -halfChest, y: length, type: 'corner' },
+      { id: 'tn_f_hem_c', x: 0, y: length, type: 'corner' },
+      { id: 'tn_f_hem_r', x: halfChest, y: length, type: 'corner' },
+      { id: 'tn_f_armpit_r', x: halfChest, y: armholeDepth, type: 'smooth' },
+      { id: 'tn_f_lsp_r', x: halfShoulder, y: 35, type: 'corner' },
+      { id: 'tn_f_hsp_r', x: halfNeck, y: 0, type: 'corner' },
+    ];
+    const frontEdges: Edge2D[] = [
+      { id: 'e_tnf_neck_r', fromPointId: 'tn_f_hsp_r', toPointId: 'tn_f_neck', type: 'cubic-bezier', name: 'Front Scoop Neck R' },
+      { id: 'e_tnf_neck_l', fromPointId: 'tn_f_neck', toPointId: 'tn_f_hsp_l', type: 'cubic-bezier', name: 'Front Scoop Neck L' },
+      { id: 'e_tnf_shoulder_l', fromPointId: 'tn_f_hsp_l', toPointId: 'tn_f_lsp_l', type: 'line', name: 'Strap L' },
+      { id: 'e_tnf_armhole_l', fromPointId: 'tn_f_lsp_l', toPointId: 'tn_f_armpit_l', type: 'cubic-bezier', name: 'Armhole Cutout L' },
+      { id: 'e_tnf_side_l', fromPointId: 'tn_f_armpit_l', toPointId: 'tn_f_hem_l', type: 'line', name: 'Side Seam L' },
+      { id: 'e_tnf_hem_l', fromPointId: 'tn_f_hem_l', toPointId: 'tn_f_hem_c', type: 'line', name: 'Hem L' },
+      { id: 'e_tnf_hem_r', fromPointId: 'tn_f_hem_c', toPointId: 'tn_f_hem_r', type: 'line', name: 'Hem R' },
+      { id: 'e_tnf_side_r', fromPointId: 'tn_f_hem_r', toPointId: 'tn_f_armpit_r', type: 'line', name: 'Side Seam R' },
+      { id: 'e_tnf_armhole_r', fromPointId: 'tn_f_armpit_r', toPointId: 'tn_f_lsp_r', type: 'cubic-bezier', name: 'Armhole Cutout R' },
+      { id: 'e_tnf_shoulder_r', fromPointId: 'tn_f_lsp_r', toPointId: 'tn_f_hsp_r', type: 'line', name: 'Strap R' },
+    ];
+    const frontPiece: PatternPiece = {
+      id: 'tank_front_body',
+      name: 'Tank Front Body',
+      category: 'body',
+      points: frontPoints,
+      edges: frontEdges,
+      position: { x: 380, y: 100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_COTTON_JERSEY',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 150 }, end: { x: 0, y: length - 100 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#3b82f6',
+    };
+
+    // Back Tank Body
+    const backPoints: ControlPoint[] = [
+      { id: 'tn_b_neck', x: 0, y: neckBack, type: 'smooth' },
+      { id: 'tn_b_hsp_l', x: -halfNeck, y: 0, type: 'corner' },
+      { id: 'tn_b_lsp_l', x: -halfShoulder, y: 35, type: 'corner' },
+      { id: 'tn_b_armpit_l', x: -halfChest, y: armholeDepth, type: 'smooth' },
+      { id: 'tn_b_hem_l', x: -halfChest, y: length, type: 'corner' },
+      { id: 'tn_b_hem_c', x: 0, y: length, type: 'corner' },
+      { id: 'tn_b_hem_r', x: halfChest, y: length, type: 'corner' },
+      { id: 'tn_b_armpit_r', x: halfChest, y: armholeDepth, type: 'smooth' },
+      { id: 'tn_b_lsp_r', x: halfShoulder, y: 35, type: 'corner' },
+      { id: 'tn_b_hsp_r', x: halfNeck, y: 0, type: 'corner' },
+    ];
+    const backEdges: Edge2D[] = [
+      { id: 'e_tnb_neck_r', fromPointId: 'tn_b_hsp_r', toPointId: 'tn_b_neck', type: 'cubic-bezier', name: 'Back Neck R' },
+      { id: 'e_tnb_neck_l', fromPointId: 'tn_b_neck', toPointId: 'tn_b_hsp_l', type: 'cubic-bezier', name: 'Back Neck L' },
+      { id: 'e_tnb_shoulder_l', fromPointId: 'tn_b_hsp_l', toPointId: 'tn_b_lsp_l', type: 'line', name: 'Back Strap L' },
+      { id: 'e_tnb_armhole_l', fromPointId: 'tn_b_lsp_l', toPointId: 'tn_b_armpit_l', type: 'cubic-bezier', name: 'Back Armhole L' },
+      { id: 'e_tnb_side_l', fromPointId: 'tn_b_armpit_l', toPointId: 'tn_b_hem_l', type: 'line', name: 'Side Seam L' },
+      { id: 'e_tnb_hem_l', fromPointId: 'tn_b_hem_l', toPointId: 'tn_b_hem_c', type: 'line', name: 'Hem L' },
+      { id: 'e_tnb_hem_r', fromPointId: 'tn_b_hem_c', toPointId: 'tn_b_hem_r', type: 'line', name: 'Hem R' },
+      { id: 'e_tnb_side_r', fromPointId: 'tn_b_hem_r', toPointId: 'tn_b_armpit_r', type: 'line', name: 'Side Seam R' },
+      { id: 'e_tnb_armhole_r', fromPointId: 'tn_b_armpit_r', toPointId: 'tn_b_lsp_r', type: 'cubic-bezier', name: 'Back Armhole R' },
+      { id: 'e_tnb_shoulder_r', fromPointId: 'tn_b_lsp_r', toPointId: 'tn_b_hsp_r', type: 'line', name: 'Back Strap R' },
+    ];
+    const backPiece: PatternPiece = {
+      id: 'tank_back_body',
+      name: 'Tank Back Body',
+      category: 'body',
+      points: backPoints,
+      edges: backEdges,
+      position: { x: 1040, y: 100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_COTTON_JERSEY',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 150 }, end: { x: 0, y: length - 100 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#06b6d4',
+    };
+
+    // Bindings
+    const neckBindingPiece: PatternPiece = {
+      id: 'tank_neck_binding',
+      name: 'Neck Binding Trim',
+      category: 'collar',
+      points: [
+        { id: 'tn_nb_tl', x: -260, y: 0, type: 'corner' },
+        { id: 'tn_nb_tr', x: 260, y: 0, type: 'corner' },
+        { id: 'tn_nb_br', x: 260, y: 22, type: 'corner' },
+        { id: 'tn_nb_bl', x: -260, y: 22, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_tn_nb_top', fromPointId: 'tn_nb_tl', toPointId: 'tn_nb_tr', type: 'line', name: 'Binding Top' },
+        { id: 'e_tn_nb_r', fromPointId: 'tn_nb_tr', toPointId: 'tn_nb_br', type: 'line', name: 'Binding Join' },
+        { id: 'e_tn_nb_bot', fromPointId: 'tn_nb_br', toPointId: 'tn_nb_bl', type: 'line', name: 'Binding Sew' },
+        { id: 'e_tn_nb_l', fromPointId: 'tn_nb_bl', toPointId: 'tn_nb_tl', type: 'line', name: 'Binding Join' },
+      ],
+      position: { x: 380, y: 880 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_RIB_KNIT',
+      defaultSeamAllowance: 8,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -240, y: 11 }, end: { x: 240, y: 11 }, hasArrowBothEnds: true, angle: 0 },
+      internalLines: [],
+      color: '#f59e0b',
+    };
+
+    const armBindingLPiece: PatternPiece = {
+      id: 'tank_arm_binding_left',
+      name: 'Left Armhole Binding',
+      category: 'trim',
+      points: [
+        { id: 'tn_abl_tl', x: -240, y: 0, type: 'corner' },
+        { id: 'tn_abl_tr', x: 240, y: 0, type: 'corner' },
+        { id: 'tn_abl_br', x: 240, y: 22, type: 'corner' },
+        { id: 'tn_abl_bl', x: -240, y: 22, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_tn_abl_top', fromPointId: 'tn_abl_tl', toPointId: 'tn_abl_tr', type: 'line', name: 'Arm Binding Top' },
+        { id: 'e_tn_abl_r', fromPointId: 'tn_abl_tr', toPointId: 'tn_abl_br', type: 'line', name: 'Join' },
+        { id: 'e_tn_abl_bot', fromPointId: 'tn_abl_br', toPointId: 'tn_abl_bl', type: 'line', name: 'Arm Binding Sew' },
+        { id: 'e_tn_abl_l', fromPointId: 'tn_abl_bl', toPointId: 'tn_abl_tl', type: 'line', name: 'Join' },
+      ],
+      position: { x: 1040, y: 880 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_RIB_KNIT',
+      defaultSeamAllowance: 8,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -220, y: 11 }, end: { x: 220, y: 11 }, hasArrowBothEnds: true, angle: 0 },
+      internalLines: [],
+      color: '#f59e0b',
+    };
+
+    const armBindingRPiece: PatternPiece = {
+      id: 'tank_arm_binding_right',
+      name: 'Right Armhole Binding',
+      category: 'trim',
+      points: [
+        { id: 'tn_abr_tl', x: -240, y: 0, type: 'corner' },
+        { id: 'tn_abr_tr', x: 240, y: 0, type: 'corner' },
+        { id: 'tn_abr_br', x: 240, y: 22, type: 'corner' },
+        { id: 'tn_abr_bl', x: -240, y: 22, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_tn_abr_top', fromPointId: 'tn_abr_tl', toPointId: 'tn_abr_tr', type: 'line', name: 'Arm Binding Top' },
+        { id: 'e_tn_abr_r', fromPointId: 'tn_abr_tr', toPointId: 'tn_abr_br', type: 'line', name: 'Join' },
+        { id: 'e_tn_abr_bot', fromPointId: 'tn_abr_br', toPointId: 'tn_abr_bl', type: 'line', name: 'Arm Binding Sew' },
+        { id: 'e_tn_abr_l', fromPointId: 'tn_abr_bl', toPointId: 'tn_abr_tl', type: 'line', name: 'Join' },
+      ],
+      position: { x: 1040, y: 940 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 1,
+      fabricCode: 'FAB_RIB_KNIT',
+      defaultSeamAllowance: 8,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -220, y: 11 }, end: { x: 220, y: 11 }, hasArrowBothEnds: true, angle: 0 },
+      internalLines: [],
+      color: '#f59e0b',
+    };
+
+    return [
+      frontPiece,
+      backPiece,
+      neckBindingPiece,
+      armBindingLPiece,
+      armBindingRPiece,
+    ];
+  };
+
+  return {
+    ...base,
+    subcategory: 'Tank Top',
+    modelId: 'tee-t5',
+    generatePatterns,
+  };
+}
+
+/**
+ * Generates an authentic Long-Sleeve T-shirt pattern with front, back,
+ * extended long sleeves, neck rib band, and left/right ribbed wrist cuffs.
+ */
+export function createLongSleeveTShirtTemplate(
+  id: string,
+  name: string,
+  fit: 'regular' | 'oversized' | 'relaxed',
+  description: string
+): GarmentTemplate {
+  const base = createTShirtTemplate(id, name, fit as any, description, {
+    chestWidth: 550,
+    bodyLength: 740,
+    shoulderWidth: 490,
+    sleeveLength: 640,
+    sleeveOpening: 135,
+    neckWidth: 185,
+    neckDepthFront: 90,
+    neckDepthBack: 22,
+    hemWidth: 550,
+    collarHeight: 25,
+  });
+
+  const generatePatterns = (m: Record<string, number>): PatternPiece[] => {
+    const pieces = base.generatePatterns(m);
+
+    const cuffW = 125 * 2;
+    const cuffH = 65;
+
+    const cuffLeft: PatternPiece = {
+      id: 'piece_sleeve_cuff_left',
+      name: 'Left Sleeve Rib Cuff',
+      category: 'trim',
+      points: [
+        { id: 'lscl_tl', x: -cuffW / 2, y: 0, type: 'corner' },
+        { id: 'lscl_tr', x: cuffW / 2, y: 0, type: 'corner' },
+        { id: 'lscl_br', x: cuffW / 2, y: cuffH, type: 'corner' },
+        { id: 'lscl_bl', x: -cuffW / 2, y: cuffH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_lscl_t', fromPointId: 'lscl_tl', toPointId: 'lscl_tr', type: 'line', name: 'Cuff Attach' },
+        { id: 'e_lscl_r', fromPointId: 'lscl_tr', toPointId: 'lscl_br', type: 'line', name: 'Cuff Join R' },
+        { id: 'e_lscl_b', fromPointId: 'lscl_br', toPointId: 'lscl_bl', type: 'line', name: 'Cuff Hem' },
+        { id: 'e_lscl_l', fromPointId: 'lscl_bl', toPointId: 'lscl_tl', type: 'line', name: 'Cuff Join L' },
+      ],
+      position: { x: 260, y: 1160 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_RIB_KNIT',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -cuffW / 2 + 20, y: cuffH / 2 }, end: { x: cuffW / 2 - 20, y: cuffH / 2 }, hasArrowBothEnds: true, angle: 0 },
+      internalLines: [],
+      color: '#f59e0b',
+    };
+
+    const cuffRight: PatternPiece = {
+      id: 'piece_sleeve_cuff_right',
+      name: 'Right Sleeve Rib Cuff',
+      category: 'trim',
+      points: [
+        { id: 'lscr_tl', x: -cuffW / 2, y: 0, type: 'corner' },
+        { id: 'lscr_tr', x: cuffW / 2, y: 0, type: 'corner' },
+        { id: 'lscr_br', x: cuffW / 2, y: cuffH, type: 'corner' },
+        { id: 'lscr_bl', x: -cuffW / 2, y: cuffH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_lscr_t', fromPointId: 'lscr_tl', toPointId: 'lscr_tr', type: 'line', name: 'Cuff Attach' },
+        { id: 'e_lscr_r', fromPointId: 'lscr_tr', toPointId: 'lscr_br', type: 'line', name: 'Cuff Join R' },
+        { id: 'e_lscr_b', fromPointId: 'lscr_br', toPointId: 'lscr_bl', type: 'line', name: 'Cuff Hem' },
+        { id: 'e_lscr_l', fromPointId: 'lscr_bl', toPointId: 'lscr_tl', type: 'line', name: 'Cuff Join L' },
+      ],
+      position: { x: 740, y: 1160 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 1,
+      fabricCode: 'FAB_RIB_KNIT',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -cuffW / 2 + 20, y: cuffH / 2 }, end: { x: cuffW / 2 - 20, y: cuffH / 2 }, hasArrowBothEnds: true, angle: 0 },
+      internalLines: [],
+      color: '#f59e0b',
+    };
+
+    return [...pieces, cuffLeft, cuffRight];
+  };
+
+  return {
+    ...base,
+    subcategory: 'Long-Sleeve T-Shirt',
+    modelId: 'tee-longsleeve',
+    generatePatterns,
+  };
+}
+
+/**
+ * Generates an authentic Pocket T-Shirt pattern with patch chest pocket.
+ */
+export function createPocketTShirtTemplate(
+  id: string,
+  name: string,
+  fit: 'regular' | 'oversized' | 'relaxed',
+  description: string
+): GarmentTemplate {
+  const base = createTShirtTemplate(id, name, fit as any, description, {
+    chestWidth: 540,
+    bodyLength: 720,
+    shoulderWidth: 480,
+    sleeveLength: 220,
+    sleeveOpening: 185,
+    neckWidth: 185,
+    neckDepthFront: 88,
+    neckDepthBack: 22,
+    hemWidth: 540,
+    collarHeight: 25,
+  });
+
+  const generatePatterns = (m: Record<string, number>): PatternPiece[] => {
+    const pieces = base.generatePatterns(m);
+
+    const pW = 115;
+    const pH = 130;
+    const pocketPiece: PatternPiece = {
+      id: 'piece_chest_pocket',
+      name: 'Left Chest Patch Pocket',
+      category: 'pocket',
+      points: [
+        { id: 'tcp_tl', x: -pW / 2, y: 0, type: 'corner' },
+        { id: 'tcp_tr', x: pW / 2, y: 0, type: 'corner' },
+        { id: 'tcp_mr', x: pW / 2, y: pH - 20, type: 'corner' },
+        { id: 'tcp_b', x: 0, y: pH, type: 'corner' },
+        { id: 'tcp_ml', x: -pW / 2, y: pH - 20, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_tcp_t', fromPointId: 'tcp_tl', toPointId: 'tcp_tr', type: 'line', name: 'Pocket Hem' },
+        { id: 'e_tcp_r', fromPointId: 'tcp_tr', toPointId: 'tcp_mr', type: 'line', name: 'Pocket Side R' },
+        { id: 'e_tcp_br', fromPointId: 'tcp_mr', toPointId: 'tcp_b', type: 'line', name: 'Pocket Point R' },
+        { id: 'e_tcp_bl', fromPointId: 'tcp_b', toPointId: 'tcp_ml', type: 'line', name: 'Pocket Point L' },
+        { id: 'e_tcp_l', fromPointId: 'tcp_ml', toPointId: 'tcp_tl', type: 'line', name: 'Pocket Side L' },
+      ],
+      position: { x: 380, y: 780 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_COTTON_JERSEY',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 15 }, end: { x: 0, y: pH - 15 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#38bdf8',
+    };
+
+    return [...pieces, pocketPiece];
+  };
+
+  return {
+    ...base,
+    subcategory: 'Pocket T-Shirt',
+    modelId: 'tee-t5',
+    generatePatterns,
+  };
+}
+
+/**
+ * Generates an authentic Ringer T-Shirt pattern with contrast rib neckband and sleeve bindings.
+ */
+export function createRingerTShirtTemplate(
+  id: string,
+  name: string,
+  fit: 'regular' | 'slim',
+  description: string
+): GarmentTemplate {
+  const base = createTShirtTemplate(id, name, fit as any, description, {
+    chestWidth: 520,
+    bodyLength: 720,
+    shoulderWidth: 460,
+    sleeveLength: 220,
+    sleeveOpening: 175,
+    neckWidth: 180,
+    neckDepthFront: 88,
+    neckDepthBack: 22,
+    hemWidth: 520,
+    collarHeight: 22,
+  });
+
+  const generatePatterns = (m: Record<string, number>): PatternPiece[] => {
+    const pieces = base.generatePatterns(m);
+
+    const bindW = 175 * 2;
+    const bindH = 22;
+
+    const bindLeft: PatternPiece = {
+      id: 'piece_sleeve_binding_left',
+      name: 'Left Sleeve Contrast Binding',
+      category: 'trim',
+      points: [
+        { id: 'sbl_tl', x: -bindW / 2, y: 0, type: 'corner' },
+        { id: 'sbl_tr', x: bindW / 2, y: 0, type: 'corner' },
+        { id: 'sbl_br', x: bindW / 2, y: bindH, type: 'corner' },
+        { id: 'sbl_bl', x: -bindW / 2, y: bindH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_sbl_t', fromPointId: 'sbl_tl', toPointId: 'sbl_tr', type: 'line', name: 'Binding Attach' },
+        { id: 'e_sbl_r', fromPointId: 'sbl_tr', toPointId: 'sbl_br', type: 'line', name: 'Binding Join R' },
+        { id: 'e_sbl_b', fromPointId: 'sbl_br', toPointId: 'sbl_bl', type: 'line', name: 'Binding Hem' },
+        { id: 'e_sbl_l', fromPointId: 'sbl_bl', toPointId: 'sbl_tl', type: 'line', name: 'Binding Join L' },
+      ],
+      position: { x: 260, y: 1140 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_RIB_KNIT',
+      defaultSeamAllowance: 8,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -bindW / 2 + 20, y: bindH / 2 }, end: { x: bindW / 2 - 20, y: bindH / 2 }, hasArrowBothEnds: true, angle: 0 },
+      internalLines: [],
+      color: '#ef4444',
+    };
+
+    const bindRight: PatternPiece = {
+      id: 'piece_sleeve_binding_right',
+      name: 'Right Sleeve Contrast Binding',
+      category: 'trim',
+      points: [
+        { id: 'sbr_tl', x: -bindW / 2, y: 0, type: 'corner' },
+        { id: 'sbr_tr', x: bindW / 2, y: 0, type: 'corner' },
+        { id: 'sbr_br', x: bindW / 2, y: bindH, type: 'corner' },
+        { id: 'sbr_bl', x: -bindW / 2, y: bindH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_sbr_t', fromPointId: 'sbr_tl', toPointId: 'sbr_tr', type: 'line', name: 'Binding Attach' },
+        { id: 'e_sbr_r', fromPointId: 'sbr_tr', toPointId: 'sbr_br', type: 'line', name: 'Binding Join R' },
+        { id: 'e_sbr_b', fromPointId: 'sbr_br', toPointId: 'sbr_bl', type: 'line', name: 'Binding Hem' },
+        { id: 'e_sbr_l', fromPointId: 'sbr_bl', toPointId: 'sbr_tl', type: 'line', name: 'Binding Join L' },
+      ],
+      position: { x: 740, y: 1140 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 1,
+      fabricCode: 'FAB_RIB_KNIT',
+      defaultSeamAllowance: 8,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -bindW / 2 + 20, y: bindH / 2 }, end: { x: bindW / 2 - 20, y: bindH / 2 }, hasArrowBothEnds: true, angle: 0 },
+      internalLines: [],
+      color: '#ef4444',
+    };
+
+    return [...pieces, bindLeft, bindRight];
+  };
+
+  return {
+    ...base,
+    subcategory: 'Ringer T-Shirt',
+    modelId: 'tee-t5',
+    generatePatterns,
   };
 }

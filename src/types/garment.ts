@@ -44,6 +44,8 @@ export interface GarmentTemplate {
   measurements: GarmentMeasurement[];
   gradingRules: SizeGradingRule[];
   defaultFabricCode: string;
+  /** Explicit 3D model directory name under /models/ */
+  modelId: string;
   // Factory function to generate pattern pieces parametrically from measurements
   generatePatterns: (measurements: Record<string, number>) => PatternPiece[];
   // Initial sewing definitions

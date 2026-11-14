@@ -10,9 +10,10 @@ import { imageCache } from '../../services/imageCache';
 
 interface BlankGarment3DProps {
   modelType?: string;
+  onModelLoaded?: (data: BlankModelData) => void;
 }
 
-export const BlankGarment3D: React.FC<BlankGarment3DProps> = ({ modelType = 'tee-t5' }) => {
+export const BlankGarment3D: React.FC<BlankGarment3DProps> = ({ modelType = 'tee-t5', onModelLoaded }) => {
   const { material } = useMaterialStore();
   const { layers } = useDesignStore();
   const { settings } = useSceneStore();
@@ -34,12 +35,15 @@ export const BlankGarment3D: React.FC<BlankGarment3DProps> = ({ modelType = 'tee
   useEffect(() => {
     let active = true;
     setIsLoading(true);
+    setModelData(null); // Clear previous model immediately so no stale mesh remains
+    setNormalTexture(null);
 
     const basePath = `/models/${modelType}`;
     loadBlankBuilderModel(`${basePath}/model.bin`, `${basePath}/normal.jpg`)
       .then((data) => {
         if (!active) return;
         setModelData(data);
+        onModelLoaded?.(data);
 
         // Load normal map for realistic cotton jersey relief and cloth folds
         const textureLoader = new THREE.TextureLoader();

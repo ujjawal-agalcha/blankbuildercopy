@@ -1,4 +1,18 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Crosshair,
+  RotateCcw,
+  Hand,
+  Grid,
+  Magnet,
+  Ruler,
+  LayoutGrid,
+  Scissors,
+  Eye,
+} from 'lucide-react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useGarmentStore } from '../../store/useGarmentStore';
 import { useSewingStore } from '../../store/useSewingStore';
@@ -6,14 +20,22 @@ import { useDesignStore } from '../../store/useDesignStore';
 import { Point2D, PatternPiece, ControlPoint, Edge2D } from '../../types/cad';
 import { ArtworkLayer } from '../../types/artwork';
 import { generateSeamAllowanceContour, contourToSvgPath } from '../../geometry/offset';
-import { sampleEdgePoints, calculateEdgeLength, getPointOnEdgeAtRatio, getPieceBoundingBox } from '../../geometry/measurements';
+import {
+  sampleEdgePoints,
+  calculateEdgeLength,
+  getPointOnEdgeAtRatio,
+  getPieceBoundingBox,
+  getAllPiecesWorldBoundingBox,
+} from '../../geometry/measurements';
 import { formatUnit } from '../../geometry/converters';
 import { Rulers } from './Rulers';
 
 export const PatternEditor2D: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
 
+  // Responsive workspace sizing with ResizeObserver
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
@@ -25,8 +47,17 @@ export const PatternEditor2D: React.FC = () => {
       }
     };
     updateSize();
+
+    const ro = new ResizeObserver(() => {
+      updateSize();
+    });
+    ro.observe(containerRef.current);
     window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
   }, []);
 
   const {
@@ -41,17 +72,27 @@ export const PatternEditor2D: React.FC = () => {
     setSelectedEdgeId,
     unit,
     gridSnap,
+    setGridSnap,
     gridSize,
+    setGridSize,
+    showGrid,
+    setShowGrid,
+    showRulers,
+    setShowRulers,
     showSeamAllowance,
     showGrainlines,
     showNotches,
     showDimensions,
+    setShowDimensions,
     setCursorCoords,
     pendingSewEdge,
     setPendingSewEdge,
+    fitTrigger,
+    fitSelectionTrigger,
   } = useEditorStore();
 
   const {
+    template,
     pieces,
     updatePiecePosition,
     updatePiecePoint,
@@ -59,6 +100,8 @@ export const PatternEditor2D: React.FC = () => {
     rotatePiece,
     addNotchToEdge,
     addPointToEdge,
+    arrangeAllPieces,
+    nestAllPieces,
   } = useGarmentStore();
 
   const { relationships, addRelationship } = useSewingStore();
@@ -120,6 +163,154 @@ export const PatternEditor2D: React.FC = () => {
     return { x: centerX, y: centerY };
   };
 
+  // 1. Zoom to Fit All Pattern Pieces inside available viewport
+  const fitAllPieces = useCallback(
+    (customPadding = 50) => {
+      const currentPieces = useGarmentStore.getState().pieces;
+      if (!containerRef.current || currentPieces.length === 0) return;
+      const cw = containerRef.current.clientWidth || containerSize.width;
+      const ch = containerRef.current.clientHeight || containerSize.height;
+      if (cw <= 50 || ch <= 50) return;
+
+      const bbox = getAllPiecesWorldBoundingBox(currentPieces);
+      if (bbox.width <= 0 || bbox.height <= 0) return;
+
+      // Available space accounting for padding and metric rulers (22px left/top)
+      const availW = Math.max(100, cw - customPadding * 2 - 22);
+      const availH = Math.max(100, ch - customPadding * 2 - 22);
+
+      // Compute optimal zoom
+      const zoomX = availW / bbox.width;
+      const zoomY = availH / bbox.height;
+      const targetZoom = Math.min(zoomX, zoomY);
+      const clampedZoom = Math.max(0.12, Math.min(1.8, targetZoom));
+
+      // Center in canvas
+      const centerWorldX = bbox.minX + bbox.width / 2;
+      const centerWorldY = bbox.minY + bbox.height / 2;
+
+      const targetX = (cw + 22) / 2 - centerWorldX * clampedZoom;
+      const targetY = (ch + 22) / 2 - centerWorldY * clampedZoom;
+
+      setViewport({ x: targetX, y: targetY, zoom: clampedZoom });
+    },
+    [containerSize.width, containerSize.height, setViewport]
+  );
+
+  // 2. Zoom to Fit Selected Pattern Piece
+  const fitSelectedPiece = useCallback(
+    (pieceId?: string, customPadding = 60) => {
+      if (!containerRef.current) return;
+      const currentPieces = useGarmentStore.getState().pieces;
+      const targetId = pieceId || useEditorStore.getState().selectedPieceId;
+      const piece = currentPieces.find((p) => p.id === targetId);
+      if (!piece) {
+        fitAllPieces(50);
+        return;
+      }
+      const cw = containerRef.current.clientWidth || containerSize.width;
+      const ch = containerRef.current.clientHeight || containerSize.height;
+      if (cw <= 50 || ch <= 50) return;
+
+      const localBbox = getPieceBoundingBox(piece);
+      const rad = ((piece.rotation || 0) * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      const rotW = localBbox.width * cos + localBbox.height * sin;
+      const rotH = localBbox.width * sin + localBbox.height * cos;
+
+      const availW = Math.max(100, cw - customPadding * 2 - 22);
+      const availH = Math.max(100, ch - customPadding * 2 - 22);
+      const targetZoom = Math.max(0.18, Math.min(availW / rotW, availH / rotH, 2.2));
+
+      const centerWorldX = piece.position.x + localBbox.minX + localBbox.width / 2;
+      const centerWorldY = piece.position.y + localBbox.minY + localBbox.height / 2;
+
+      const targetX = (cw + 22) / 2 - centerWorldX * targetZoom;
+      const targetY = (ch + 22) / 2 - centerWorldY * targetZoom;
+
+      setViewport({ x: targetX, y: targetY, zoom: targetZoom });
+    },
+    [containerSize.width, containerSize.height, fitAllPieces, setViewport]
+  );
+
+  // 3. Zoom In (centered on canvas)
+  const handleZoomIn = () => {
+    if (!containerRef.current) return;
+    const cw = containerRef.current.clientWidth;
+    const ch = containerRef.current.clientHeight;
+    const cx = cw / 2;
+    const cy = ch / 2;
+    const newZoom = Math.min(3.5, viewport.zoom * 1.25);
+    const newX = cx - (cx - viewport.x) * (newZoom / viewport.zoom);
+    const newY = cy - (cy - viewport.y) * (newZoom / viewport.zoom);
+    setViewport({ x: newX, y: newY, zoom: newZoom });
+  };
+
+  // 4. Zoom Out (centered on canvas)
+  const handleZoomOut = () => {
+    if (!containerRef.current) return;
+    const cw = containerRef.current.clientWidth;
+    const ch = containerRef.current.clientHeight;
+    const cx = cw / 2;
+    const cy = ch / 2;
+    const newZoom = Math.max(0.12, viewport.zoom * 0.8);
+    const newX = cx - (cx - viewport.x) * (newZoom / viewport.zoom);
+    const newY = cy - (cy - viewport.y) * (newZoom / viewport.zoom);
+    setViewport({ x: newX, y: newY, zoom: newZoom });
+  };
+
+  // Keyboard shortcut listener for spacebar pan & '0' fit
+  const fitAllPiecesRef = useRef(fitAllPieces);
+  fitAllPiecesRef.current = fitAllPieces;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
+      if (e.code === 'Space' && !e.repeat) {
+        setIsSpacePressed(true);
+      }
+      if (e.key === '0') {
+        fitAllPiecesRef.current(50);
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
+  // Auto-frame on first layout sizing
+  const initialFitDone = useRef(false);
+  useEffect(() => {
+    if (!initialFitDone.current && containerSize.width > 50 && containerSize.height > 50) {
+      initialFitDone.current = true;
+      fitAllPieces(50);
+    }
+  }, [containerSize.width, containerSize.height, fitAllPieces]);
+
+  // Auto-frame when template changes or fitTrigger is invoked
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fitAllPieces(50);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [template.id, fitTrigger, fitAllPieces]);
+
+  // Fit selection trigger
+  useEffect(() => {
+    if (fitSelectionTrigger > 0) {
+      fitSelectedPiece(selectedPieceId || undefined, 60);
+    }
+  }, [fitSelectionTrigger, fitSelectedPiece, selectedPieceId]);
+
   // Mouse wheel zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -129,7 +320,7 @@ export const PatternEditor2D: React.FC = () => {
     const mouseY = e.clientY - rect.top;
 
     const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-    const newZoom = Math.min(3.5, Math.max(0.15, viewport.zoom * zoomFactor));
+    const newZoom = Math.min(4.5, Math.max(0.06, viewport.zoom * zoomFactor));
 
     const newX = mouseX - (mouseX - viewport.x) * (newZoom / viewport.zoom);
     const newY = mouseY - (mouseY - viewport.y) * (newZoom / viewport.zoom);
@@ -148,12 +339,14 @@ export const PatternEditor2D: React.FC = () => {
       return;
     }
 
-    // Middle click or clicking empty workspace background
-    if (e.button === 1 || (e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).tagName === 'rect') {
+    // Middle click, spacebar drag, or clicking empty workspace background
+    if (e.button === 1 || isSpacePressed || (e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).tagName === 'rect') {
       setIsPanning(true);
       setPanStart({ x: e.clientX - viewport.x, y: e.clientY - viewport.y });
-      // Deselect artwork if clicking empty space
-      setActiveLayerId(null);
+      // Deselect artwork if clicking empty space without spacebar
+      if (!isSpacePressed && ((e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).tagName === 'rect')) {
+        setActiveLayerId(null);
+      }
     }
   };
 
@@ -276,6 +469,11 @@ export const PatternEditor2D: React.FC = () => {
   // Start dragging a piece
   const handlePieceMouseDown = (e: React.MouseEvent, piece: PatternPiece) => {
     if (activeTool === 'sew') return;
+    if (isSpacePressed) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - viewport.x, y: e.clientY - viewport.y });
+      return;
+    }
     e.stopPropagation();
     setSelectedPieceId(piece.id);
 
@@ -357,6 +555,12 @@ export const PatternEditor2D: React.FC = () => {
     });
   };
 
+  // Dynamic world visible area for truly infinite canvas grid & axes
+  const visibleMinX = (-viewport.x) / viewport.zoom - 500;
+  const visibleMinY = (-viewport.y) / viewport.zoom - 500;
+  const visibleWidth = (containerSize.width / viewport.zoom) + 1000;
+  const visibleHeight = (containerSize.height / viewport.zoom) + 1000;
+
   return (
     <div
       ref={containerRef}
@@ -364,7 +568,17 @@ export const PatternEditor2D: React.FC = () => {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      className="relative flex-1 h-full w-full bg-cad-bg overflow-hidden cursor-crosshair select-none"
+      className={`relative flex-1 h-full w-full bg-cad-bg overflow-hidden select-none ${
+        isPanning
+          ? 'cursor-grabbing'
+          : isSpacePressed
+          ? 'cursor-grab'
+          : activeTool === 'move'
+          ? 'cursor-move'
+          : activeTool === 'measure'
+          ? 'cursor-crosshair'
+          : 'cursor-default'
+      }`}
     >
       {/* 2D SVG CAD Canvas */}
       <svg
@@ -398,21 +612,25 @@ export const PatternEditor2D: React.FC = () => {
           </marker>
         </defs>
 
-        {/* CAD Grid Background */}
-        <rect
-          x="-5000"
-          y="-5000"
-          width="10000"
-          height="10000"
-          fill="url(#grid-pattern-large)"
-        />
+        {/* Infinite CAD Grid Background */}
+        {showGrid && (
+          <rect
+            x={visibleMinX}
+            y={visibleMinY}
+            width={visibleWidth}
+            height={visibleHeight}
+            fill="url(#grid-pattern-large)"
+          />
+        )}
 
-        {/* Coordinate Origin Crosshair (0,0) */}
-        <g stroke="#334155" strokeWidth="1.5">
-          <line x1="-80" y1="0" x2="80" y2="0" />
-          <line x1="0" y1="-80" x2="0" y2="80" />
-          <circle cx="0" cy="0" r="3.5" fill="#10b981" />
-        </g>
+        {/* Infinite Coordinate Origin Axes (0,0) */}
+        {showGrid && (
+          <g stroke="#334155" strokeWidth="1">
+            <line x1={visibleMinX} y1="0" x2={visibleMinX + visibleWidth} y2="0" strokeDasharray="4 4" />
+            <line x1="0" y1={visibleMinY} x2="0" y2={visibleMinY + visibleHeight} strokeDasharray="4 4" />
+            <circle cx="0" cy="0" r="3.5" fill="#10b981" />
+          </g>
+        )}
 
         {/* Visual Sewing Seam Link Curves */}
         {relationships.map((rel) => {
@@ -831,13 +1049,160 @@ export const PatternEditor2D: React.FC = () => {
       </svg>
 
       {/* On-Canvas Metric Rulers (Top & Left) */}
-      <Rulers
-        width={containerSize.width}
-        height={containerSize.height}
-        viewport={viewport}
-        cursorCoords={useEditorStore.getState().cursorCoords}
-        unit={unit}
-      />
+      {showRulers && (
+        <Rulers
+          width={containerSize.width}
+          height={containerSize.height}
+          viewport={viewport}
+          cursorCoords={useEditorStore.getState().cursorCoords}
+          unit={unit}
+        />
+      )}
+
+      {/* Floating CAD Viewport Navigation & Layout Toolbar */}
+      <div className="absolute bottom-3 right-3 flex items-center bg-cad-panel/95 backdrop-blur-md border border-cad-border p-1 rounded-lg shadow-2xl gap-1 text-xs z-20 select-none">
+        {/* Zoom Controls */}
+        <button
+          onClick={handleZoomIn}
+          className="p-1.5 rounded hover:bg-cad-panelLight text-cad-text hover:text-cad-accent transition"
+          title="Zoom In (+)"
+        >
+          <ZoomIn className="w-3.5 h-3.5" />
+        </button>
+
+        <span className="text-[11px] font-mono text-cad-textMuted px-1 min-w-[42px] text-center">
+          {Math.round(viewport.zoom * 100)}%
+        </span>
+
+        <button
+          onClick={handleZoomOut}
+          className="p-1.5 rounded hover:bg-cad-panelLight text-cad-text hover:text-cad-accent transition"
+          title="Zoom Out (-)"
+        >
+          <ZoomOut className="w-3.5 h-3.5" />
+        </button>
+
+        <div className="w-[1px] h-4 bg-cad-border mx-0.5" />
+
+        {/* Framing Controls */}
+        <button
+          onClick={() => fitAllPieces(50)}
+          className="px-2 py-1 rounded bg-cad-accentSoft hover:bg-cad-accent/30 text-cad-accent flex items-center gap-1 font-semibold text-[11px] transition shadow-sm"
+          title="Zoom to Fit All Pattern Pieces (Press '0')"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          <span>Fit All</span>
+        </button>
+
+        <button
+          onClick={() => fitSelectedPiece(selectedPieceId || undefined, 60)}
+          className="p-1.5 rounded hover:bg-cad-panelLight text-cad-text hover:text-cad-accent transition"
+          title="Zoom to Selected Piece"
+        >
+          <Crosshair className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          onClick={() => {
+            if (containerRef.current) {
+              const cw = containerRef.current.clientWidth;
+              const ch = containerRef.current.clientHeight;
+              setViewport({ x: cw / 4, y: ch / 4, zoom: 0.65 });
+            }
+          }}
+          className="p-1.5 rounded hover:bg-cad-panelLight text-cad-text hover:text-white transition"
+          title="Reset View (1:1)"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+
+        <div className="w-[1px] h-4 bg-cad-border mx-0.5" />
+
+        {/* Grid & Ruler Toggles */}
+        <button
+          onClick={() => setShowGrid(!showGrid)}
+          className={`p-1.5 rounded transition ${
+            showGrid ? 'bg-cad-panelLight text-cad-accent' : 'text-cad-textMuted hover:text-cad-text'
+          }`}
+          title={showGrid ? 'Hide CAD Grid' : 'Show CAD Grid'}
+        >
+          <Grid className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          onClick={() => setShowRulers(!showRulers)}
+          className={`p-1.5 rounded transition ${
+            showRulers ? 'bg-cad-panelLight text-cad-accent' : 'text-cad-textMuted hover:text-cad-text'
+          }`}
+          title={showRulers ? 'Hide Metric Rulers' : 'Show Metric Rulers'}
+        >
+          <Ruler className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          onClick={() => setShowDimensions(!showDimensions)}
+          className={`p-1.5 rounded transition ${
+            showDimensions ? 'bg-cad-panelLight text-cad-accent' : 'text-cad-textMuted hover:text-cad-text'
+          }`}
+          title={showDimensions ? 'Hide Measurements' : 'Show Measurements'}
+        >
+          <Eye className="w-3.5 h-3.5" />
+        </button>
+
+        <div className="w-[1px] h-4 bg-cad-border mx-0.5" />
+
+        {/* Snap & Spacing Selector */}
+        <button
+          onClick={() => setGridSnap(!gridSnap)}
+          className={`p-1.5 rounded flex items-center gap-1 transition ${
+            gridSnap ? 'bg-cad-panelLight text-cad-accent font-semibold' : 'text-cad-textMuted hover:text-cad-text'
+          }`}
+          title={gridSnap ? 'Grid Snapping Enabled' : 'Grid Snapping Disabled'}
+        >
+          <Magnet className="w-3.5 h-3.5" />
+        </button>
+
+        {gridSnap && (
+          <select
+            value={gridSize}
+            onChange={(e) => setGridSize(Number(e.target.value))}
+            className="bg-cad-bg text-[10px] font-mono text-cad-text rounded border border-cad-border px-1 py-0.5 focus:outline-none"
+            title="Snap Spacing"
+          >
+            <option value="1">0.1cm</option>
+            <option value="5">0.5cm</option>
+            <option value="10">1.0cm</option>
+            <option value="50">5.0cm</option>
+          </select>
+        )}
+
+        <div className="w-[1px] h-4 bg-cad-border mx-0.5" />
+
+        {/* Auto Arrangement & Fabric Nesting */}
+        <button
+          onClick={() => {
+            arrangeAllPieces();
+            setTimeout(() => fitAllPieces(50), 60);
+          }}
+          className="px-2 py-1 rounded bg-cad-panelLight hover:bg-cad-panelLight/80 text-cad-text hover:text-cad-accent flex items-center gap-1 font-medium text-[11px] transition"
+          title="Auto-Arrange Pattern Pieces on Cutting Table"
+        >
+          <LayoutGrid className="w-3.5 h-3.5 text-cad-accent" />
+          <span>Arrange</span>
+        </button>
+
+        <button
+          onClick={() => {
+            nestAllPieces();
+            setTimeout(() => fitAllPieces(50), 60);
+          }}
+          className="px-2 py-1 rounded bg-cad-panelLight hover:bg-cad-panelLight/80 text-cad-text hover:text-emerald-400 flex items-center gap-1 font-medium text-[11px] transition"
+          title="Nest Pattern Pieces for Fabric Roll Cutting (150cm bolt)"
+        >
+          <Scissors className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Nest Cut</span>
+        </button>
+      </div>
     </div>
   );
 };

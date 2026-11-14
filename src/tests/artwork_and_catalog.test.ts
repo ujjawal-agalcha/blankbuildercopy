@@ -74,22 +74,26 @@ describe('Garment-Specific 2D Pattern Generation', () => {
     const sleeveR = pieces.find((p) => p.id === 'piece_sleeve_right')!;
     expect(sleeveL.edges.length).toBeGreaterThan(4);
     expect(sleeveR.edges.length).toBeGreaterThan(4);
-    expect(sleeveL.position.y).not.toBe(sleeveR.position.y); // Placed at different workspace coordinates
+    expect(sleeveL.position.x).not.toBe(sleeveR.position.x); // Placed at distinct workspace coordinates
   });
 
-  it('generates 7 distinct pattern pieces for Hoodie (front, back, pocket, left sleeve, right sleeve, left hood, right hood)', () => {
+  it('generates 11 distinct pattern pieces for Hoodie (front, back, pocket, left/right sleeves, left/right cuffs, left/right hood, gusset, waistband)', () => {
     const hoodie = createHoodieTemplate('test_hoodie', 'Pullover Hoodie', 'oversized', 'Test Hoodie');
     const pieces = hoodie.generatePatterns({});
 
-    expect(pieces.length).toBe(7);
+    expect(pieces.length).toBe(11);
     const pieceIds = pieces.map((p) => p.id);
     expect(pieceIds).toContain('hoodie_front');
     expect(pieceIds).toContain('hoodie_back');
     expect(pieceIds).toContain('hoodie_pocket');
     expect(pieceIds).toContain('hoodie_sleeve_left');
     expect(pieceIds).toContain('hoodie_sleeve_right');
+    expect(pieceIds).toContain('hoodie_cuff_left');
+    expect(pieceIds).toContain('hoodie_cuff_right');
     expect(pieceIds).toContain('hoodie_hood_left');
     expect(pieceIds).toContain('hoodie_hood_right');
+    expect(pieceIds).toContain('hoodie_hood_gusset');
+    expect(pieceIds).toContain('hoodie_waistband');
   });
 
   it('generates 5 distinct pattern pieces for Pants (front left leg, front right leg, back left leg, back right leg, waistband)', () => {
@@ -166,4 +170,194 @@ describe('Manual 2D Position Editing & Sizing Persistence', () => {
     expect(xxlMeasurements.chestWidth).toBeGreaterThan(600);
   });
 });
+
+describe('Catalog-to-Model Mapping & Construction Verification', () => {
+  it('maps Oversized T-Shirt to tee-oversize-1 with 5 distinct pieces', () => {
+    const tpl = getTemplateById('tshirt_oversized');
+    expect(tpl.modelId).toBe('tee-oversize-1');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(5);
+  });
+
+  it('maps Regular T-Shirt to tee-t5 with 5 distinct pieces', () => {
+    const tpl = getTemplateById('tshirt_regular');
+    expect(tpl.modelId).toBe('tee-t5');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(5);
+  });
+
+  it('maps Classic Hoodie to hoodie model with 11 distinct pieces', () => {
+    const tpl = getTemplateById('hoodie_classic');
+    expect(tpl.modelId).toBe('hoodie');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(11);
+  });
+
+  it('maps Zip-Up Hoodie to hoodie-body with 13 split front, pocket, cuff, and facing pieces', () => {
+    const tpl = getTemplateById('hoodie_zip_up');
+    expect(tpl.modelId).toBe('hoodie-body');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(13);
+    const pieceIds = pieces.map((p) => p.id);
+    expect(pieceIds).toContain('hoodie_front_left');
+    expect(pieceIds).toContain('hoodie_front_right');
+    expect(pieceIds).toContain('hoodie_pocket_left');
+    expect(pieceIds).toContain('hoodie_pocket_right');
+    expect(pieceIds).toContain('hoodie_zipper_facing');
+  });
+
+  it('maps Sweatshirt to hoodie-flat with 9 sweatshirt pieces', () => {
+    const tpl = getTemplateById('sweatshirt_classic');
+    expect(tpl.modelId).toBe('hoodie-flat');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(9);
+    const pieceIds = pieces.map((p) => p.id);
+    expect(pieceIds).toContain('sweatshirt_front');
+    expect(pieceIds).toContain('sweatshirt_collar_rib');
+    expect(pieceIds).toContain('sweatshirt_waistband_rib');
+    expect(pieceIds).toContain('sweatshirt_v_insert');
+  });
+
+  it('maps Jeans to moto-pants with 11 pieces including back yokes, patch pockets, coin pocket, and fly shield', () => {
+    const tpl = getTemplateById('pants_straight_jeans');
+    expect(tpl.modelId).toBe('moto-pants');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(11);
+    const pieceIds = pieces.map((p) => p.id);
+    expect(pieceIds).toContain('jeans_yoke_left');
+    expect(pieceIds).toContain('jeans_yoke_right');
+    expect(pieceIds).toContain('jeans_back_pocket_left');
+    expect(pieceIds).toContain('jeans_coin_pocket');
+    expect(pieceIds).toContain('jeans_fly_shield');
+  });
+
+  it('maps Cargo Pants to moto-pants with 10 pieces including bellows cargo pockets and flaps', () => {
+    const tpl = getTemplateById('pants_cargo');
+    expect(tpl.modelId).toBe('moto-pants');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(10);
+    const pieceIds = pieces.map((p) => p.id);
+    expect(pieceIds).toContain('cargo_pocket_left');
+    expect(pieceIds).toContain('cargo_pocket_right');
+    expect(pieceIds).toContain('cargo_flap_left');
+    expect(pieceIds).toContain('cargo_flap_right');
+  });
+
+  it('maps Bomber Jacket to hoodie-body with jacket construction', () => {
+    const tpl = getTemplateById('jacket_bomber');
+    expect(tpl.modelId).toBe('hoodie-body');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it('maps Tank Top to tee-t5 with 5 sleeveless binding pieces', () => {
+    const tpl = getTemplateById('tank_classic');
+    expect(tpl.modelId).toBe('tee-t5');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(5);
+    const pieceIds = pieces.map((p) => p.id);
+    expect(pieceIds).toContain('tank_front_body');
+    expect(pieceIds).toContain('tank_neck_binding');
+    expect(pieceIds).toContain('tank_arm_binding_left');
+  });
+
+  it('maps Casual Button-Up Shirt to shirt-short-sleeve with 11 distinct pieces', () => {
+    const tpl = getTemplateById('shirt_button_up');
+    expect(tpl.modelId).toBe('shirt-short-sleeve');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(11);
+    const pieceIds = pieces.map((p) => p.id);
+    expect(pieceIds).toContain('shirt_front_left');
+    expect(pieceIds).toContain('shirt_front_right');
+    expect(pieceIds).toContain('shirt_back_body');
+    expect(pieceIds).toContain('shirt_back_yoke');
+    expect(pieceIds).toContain('shirt_sleeve_left');
+    expect(pieceIds).toContain('shirt_sleeve_right');
+    expect(pieceIds).toContain('shirt_cuff_left');
+    expect(pieceIds).toContain('shirt_cuff_right');
+    expect(pieceIds).toContain('shirt_collar_leaf');
+    expect(pieceIds).toContain('shirt_collar_stand');
+    expect(pieceIds).toContain('shirt_chest_pocket');
+  });
+
+  it('generates 7 distinct pieces for Long Sleeve T-Shirt', () => {
+    const tpl = getTemplateById('tshirt_baseball');
+    expect(tpl.modelId).toBe('tee-longsleeve');
+    const pieces = tpl.generatePatterns({});
+    expect(pieces.length).toBe(7);
+    const pieceIds = pieces.map((p) => p.id);
+    expect(pieceIds).toContain('piece_sleeve_left');
+    expect(pieceIds).toContain('piece_sleeve_right');
+    expect(pieceIds).toContain('piece_sleeve_cuff_left');
+    expect(pieceIds).toContain('piece_sleeve_cuff_right');
+  });
+
+  it('generates 6 pieces for Pocket T-Shirt and 7 pieces for Ringer T-Shirt', () => {
+    const pocketTpl = getTemplateById('tshirt_pocket');
+    const pocketPieces = pocketTpl.generatePatterns({});
+    expect(pocketPieces.length).toBe(6);
+    expect(pocketPieces.map((p) => p.id)).toContain('piece_chest_pocket');
+
+    const ringerTpl = getTemplateById('tshirt_ringer');
+    const ringerPieces = ringerTpl.generatePatterns({});
+    expect(ringerPieces.length).toBe(7);
+    expect(ringerPieces.map((p) => p.id)).toContain('piece_sleeve_binding_left');
+    expect(ringerPieces.map((p) => p.id)).toContain('piece_sleeve_binding_right');
+  });
+
+  it('contains exactly 132 unique garments in the master catalog loaded from individual folders', () => {
+    expect(GARMENT_TEMPLATES.length).toBe(132);
+    const ids = new Set(GARMENT_TEMPLATES.map((g) => g.id));
+    expect(ids.size).toBe(132);
+
+    // Verify all garments generate valid pattern pieces and have a non-empty name and modelId
+    for (const garment of GARMENT_TEMPLATES) {
+      expect(garment.id).toBeTruthy();
+      expect(garment.name).toBeTruthy();
+      expect(garment.modelId).toBeTruthy();
+      const pieces = garment.generatePatterns({});
+      expect(pieces.length).toBeGreaterThanOrEqual(2);
+      for (const piece of pieces) {
+        expect(piece.points.length).toBeGreaterThanOrEqual(3);
+        expect(Number.isFinite(piece.position.x)).toBe(true);
+        expect(Number.isFinite(piece.position.y)).toBe(true);
+      }
+    }
+  });
+});
+
+describe('Auto-Arrange & Fabric Roll Nesting', () => {
+  it('arranges pattern pieces in clear non-overlapping rows without NaN values', async () => {
+    const { autoArrangePatternPieces } = await import('../geometry/nesting');
+    const teeTpl = getTemplateById('tshirt_regular');
+    const pieces = teeTpl.generatePatterns({});
+
+    const arranged = autoArrangePatternPieces(pieces, 50);
+    expect(arranged.length).toBe(pieces.length);
+
+    // Verify all pieces have valid finite coordinates
+    for (const p of arranged) {
+      expect(Number.isFinite(p.position.x)).toBe(true);
+      expect(Number.isFinite(p.position.y)).toBe(true);
+    }
+
+    // Verify pieces are separated (no duplicate positions)
+    const posKeys = arranged.map((p) => `${p.position.x},${p.position.y}`);
+    const uniquePositions = new Set(posKeys);
+    expect(uniquePositions.size).toBe(arranged.length);
+  });
+
+  it('nests pattern pieces on a 1500mm fabric roll and calculates length and efficiency', async () => {
+    const { nestPiecesForCutting } = await import('../geometry/nesting');
+    const hoodieTpl = getTemplateById('hoodie_classic');
+    const pieces = hoodieTpl.generatePatterns({});
+
+    const result = nestPiecesForCutting(pieces, 1450, 30);
+    expect(result.pieces.length).toBe(pieces.length);
+    expect(result.totalLengthMm).toBeGreaterThan(0);
+    expect(result.efficiency).toBeGreaterThan(0);
+    expect(result.efficiency).toBeLessThanOrEqual(100);
+  });
+});
+
 

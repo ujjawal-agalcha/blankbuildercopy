@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { PatternPiece, ControlPoint, Edge2D } from '../types/cad';
 import { GarmentTemplate, StandardSize } from '../types/garment';
 import { GARMENT_TEMPLATES, getTemplateById } from '../garments/catalog';
+import { autoArrangePatternPieces, nestPiecesForCutting } from '../geometry/nesting';
 
 interface HistorySnapshot {
   pieces: PatternPiece[];
@@ -39,6 +40,8 @@ interface GarmentState {
   mirrorPiece: (pieceId: string) => void;
   rotatePiece: (pieceId: string, angleDelta: number) => void;
   resetPatternLayout: () => void;
+  arrangeAllPieces: () => void;
+  nestAllPieces: () => void;
   updateControlHandle: (pieceId: string, pointId: string, handleType: 'in' | 'out', coords: { x: number; y: number }) => void;
   togglePieceSeamAllowance: (pieceId: string) => void;
   setPieceSeamAllowanceWidth: (pieceId: string, widthMm: number) => void;
@@ -338,6 +341,30 @@ export const useGarmentStore = create<GarmentState>((set, get) => ({
     const { template, measurements } = get();
     const freshPieces = template.generatePatterns(measurements);
     set({ pieces: freshPieces });
+  },
+
+  arrangeAllPieces: () => {
+    const { pieces, measurements, activeSize, undoStack } = get();
+    const arranged = autoArrangePatternPieces(pieces, 50, 70);
+    set({
+      pieces: arranged,
+      undoStack: [...undoStack, { pieces, measurements, activeSize }],
+      redoStack: [],
+      canUndo: true,
+      canRedo: false,
+    });
+  },
+
+  nestAllPieces: () => {
+    const { pieces, measurements, activeSize, undoStack } = get();
+    const nested = nestPiecesForCutting(pieces, 1450, 25);
+    set({
+      pieces: nested.pieces,
+      undoStack: [...undoStack, { pieces, measurements, activeSize }],
+      redoStack: [],
+      canUndo: true,
+      canRedo: false,
+    });
   },
 
   updateControlHandle: (pieceId, pointId, handleType, coords) => {

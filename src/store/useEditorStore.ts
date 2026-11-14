@@ -32,7 +32,14 @@ interface EditorState {
 
   gridSnap: boolean;
   setGridSnap: (snap: boolean) => void;
-  gridSize: number; // in mm
+  gridSize: number; // in mm (1, 5, 10, 50)
+  setGridSize: (size: number) => void;
+
+  showGrid: boolean;
+  setShowGrid: (show: boolean) => void;
+
+  showRulers: boolean;
+  setShowRulers: (show: boolean) => void;
 
   showSeamAllowance: boolean;
   setShowSeamAllowance: (show: boolean) => void;
@@ -50,13 +57,19 @@ interface EditorState {
   pendingSewEdge: { pieceId: string; edgeId: string } | null;
   setPendingSewEdge: (edge: { pieceId: string; edgeId: string } | null) => void;
 
+  // Canvas framing triggers
+  fitTrigger: number;
+  triggerFitAll: () => void;
+  fitSelectionTrigger: number;
+  triggerFitSelection: () => void;
+
   // Cursor coordinates in world space (mm)
   cursorCoords: { x: number; y: number };
   setCursorCoords: (coords: { x: number; y: number }) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
-  viewMode: '3d-only',
+  viewMode: 'split',
   setViewMode: (viewMode) => set({ viewMode }),
 
   activeTab: 'design',
@@ -85,6 +98,13 @@ export const useEditorStore = create<EditorState>((set) => ({
   gridSnap: true,
   setGridSnap: (gridSnap) => set({ gridSnap }),
   gridSize: 10, // 10mm = 1cm
+  setGridSize: (gridSize) => set({ gridSize }),
+
+  showGrid: true,
+  setShowGrid: (showGrid) => set({ showGrid }),
+
+  showRulers: true,
+  setShowRulers: (showRulers) => set({ showRulers }),
 
   showSeamAllowance: true,
   setShowSeamAllowance: (showSeamAllowance) => set({ showSeamAllowance }),
@@ -100,6 +120,12 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   pendingSewEdge: null,
   setPendingSewEdge: (pendingSewEdge) => set({ pendingSewEdge }),
+
+  fitTrigger: 0,
+  triggerFitAll: () => set((s) => ({ fitTrigger: s.fitTrigger + 1 })),
+
+  fitSelectionTrigger: 0,
+  triggerFitSelection: () => set((s) => ({ fitSelectionTrigger: s.fitSelectionTrigger + 1 })),
 
   cursorCoords: { x: 0, y: 0 },
   setCursorCoords: (cursorCoords) => set({ cursorCoords }),

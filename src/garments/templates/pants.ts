@@ -288,7 +288,436 @@ export function createPantsTemplate(
       { size: 'XXL' as StandardSize, measurementDeltas: { waistHalf: 75, hipHalf: 75, thighHalf: 38, legOpeningHalf: 25 } },
     ],
     defaultFabricCode: 'FAB_DENIM_RAW',
+    modelId: 'moto-pants',
     generatePatterns,
     defaultSewing,
+  };
+}
+
+/**
+ * Generates an authentic 5-Pocket Jeans pattern with front legs,
+ * back legs, Western back yokes, contoured waistband, and rear patch pockets.
+ */
+export function createJeansTemplate(
+  id: string,
+  name: string,
+  fit: 'straight' | 'relaxed' | 'baggy' | 'slim',
+  description: string
+): GarmentTemplate {
+  const base = createPantsTemplate(id, name, fit as any, description);
+
+  const generatePatterns = (m: Record<string, number>): PatternPiece[] => {
+    const basePieces = base.generatePatterns(m);
+
+    // Jeans Back Yoke Left & Right
+    const yokeWidth = 240;
+    const yokeHeightOuter = 75;
+    const yokeHeightInner = 50;
+
+    const yokeLeft: PatternPiece = {
+      id: 'jeans_yoke_left',
+      name: 'Back Yoke Left',
+      category: 'trim',
+      points: [
+        { id: 'jyl_tl', x: -yokeWidth, y: 0, type: 'corner' },
+        { id: 'jyl_tr', x: 0, y: 0, type: 'corner' },
+        { id: 'jyl_br', x: 0, y: yokeHeightInner, type: 'corner' },
+        { id: 'jyl_bl', x: -yokeWidth, y: yokeHeightOuter, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_jyl_t', fromPointId: 'jyl_tl', toPointId: 'jyl_tr', type: 'line', name: 'Yoke Waist Join' },
+        { id: 'e_jyl_r', fromPointId: 'jyl_tr', toPointId: 'jyl_br', type: 'line', name: 'Yoke Center Back' },
+        { id: 'e_jyl_b', fromPointId: 'jyl_br', toPointId: 'jyl_bl', type: 'line', name: 'Yoke Seat Join' },
+        { id: 'e_jyl_l', fromPointId: 'jyl_bl', toPointId: 'jyl_tl', type: 'line', name: 'Yoke Outseam' },
+      ],
+      position: { x: 300, y: 1100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_DENIM_RAW',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: -yokeWidth / 2, y: 15 }, end: { x: -yokeWidth / 2, y: yokeHeightInner + 10 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#1e3a8a',
+    };
+
+    const yokeRight: PatternPiece = {
+      id: 'jeans_yoke_right',
+      name: 'Back Yoke Right',
+      category: 'trim',
+      points: [
+        { id: 'jyr_tl', x: 0, y: 0, type: 'corner' },
+        { id: 'jyr_tr', x: yokeWidth, y: 0, type: 'corner' },
+        { id: 'jyr_br', x: yokeWidth, y: yokeHeightOuter, type: 'corner' },
+        { id: 'jyr_bl', x: 0, y: yokeHeightInner, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_jyr_t', fromPointId: 'jyr_tl', toPointId: 'jyr_tr', type: 'line', name: 'Yoke Waist Join' },
+        { id: 'e_jyr_r', fromPointId: 'jyr_tr', toPointId: 'jyr_br', type: 'line', name: 'Yoke Outseam' },
+        { id: 'e_jyr_b', fromPointId: 'jyr_br', toPointId: 'jyr_bl', type: 'line', name: 'Yoke Seat Join' },
+        { id: 'e_jyr_l', fromPointId: 'jyr_bl', toPointId: 'jyr_tl', type: 'line', name: 'Yoke Center Back' },
+      ],
+      position: { x: 600, y: 1100 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 1,
+      fabricCode: 'FAB_DENIM_RAW',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: yokeWidth / 2, y: 15 }, end: { x: yokeWidth / 2, y: yokeHeightInner + 10 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#1e3a8a',
+    };
+
+    // Rear Patch Pockets with Arcuate Stitch Line
+    const pocketW = 160;
+    const pocketH = 175;
+    const backPocketLeft: PatternPiece = {
+      id: 'jeans_back_pocket_left',
+      name: 'Back Pocket Left (5-Pocket)',
+      category: 'pocket',
+      points: [
+        { id: 'jpl_tl', x: -pocketW / 2, y: 0, type: 'corner' },
+        { id: 'jpl_tr', x: pocketW / 2, y: 0, type: 'corner' },
+        { id: 'jpl_mr', x: pocketW / 2, y: pocketH * 0.75, type: 'corner' },
+        { id: 'jpl_b', x: 0, y: pocketH, type: 'corner' },
+        { id: 'jpl_ml', x: -pocketW / 2, y: pocketH * 0.75, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_jpl_top', fromPointId: 'jpl_tl', toPointId: 'jpl_tr', type: 'line', name: 'Pocket Hem' },
+        { id: 'e_jpl_r', fromPointId: 'jpl_tr', toPointId: 'jpl_mr', type: 'line', name: 'Pocket Right' },
+        { id: 'e_jpl_br', fromPointId: 'jpl_mr', toPointId: 'jpl_b', type: 'line', name: 'Pocket Point R' },
+        { id: 'e_jpl_bl', fromPointId: 'jpl_b', toPointId: 'jpl_ml', type: 'line', name: 'Pocket Point L' },
+        { id: 'e_jpl_l', fromPointId: 'jpl_ml', toPointId: 'jpl_tl', type: 'line', name: 'Pocket Left' },
+      ],
+      position: { x: 920, y: 1100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_DENIM_RAW',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 20 }, end: { x: 0, y: pocketH - 20 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [
+        { id: 'il_arcuate_1', points: [{ x: -pocketW * 0.4, y: pocketH * 0.4 }, { x: 0, y: pocketH * 0.55 }, { x: pocketW * 0.4, y: pocketH * 0.4 }], type: 'style', name: 'Arcuate Stitch' },
+      ],
+      color: '#3b82f6',
+    };
+
+    const backPocketRight: PatternPiece = {
+      id: 'jeans_back_pocket_right',
+      name: 'Back Pocket Right (5-Pocket)',
+      category: 'pocket',
+      points: [
+        { id: 'jpr_tl', x: -pocketW / 2, y: 0, type: 'corner' },
+        { id: 'jpr_tr', x: pocketW / 2, y: 0, type: 'corner' },
+        { id: 'jpr_mr', x: pocketW / 2, y: pocketH * 0.75, type: 'corner' },
+        { id: 'jpr_b', x: 0, y: pocketH, type: 'corner' },
+        { id: 'jpr_ml', x: -pocketW / 2, y: pocketH * 0.75, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_jpr_top', fromPointId: 'jpr_tl', toPointId: 'jpr_tr', type: 'line', name: 'Pocket Hem' },
+        { id: 'e_jpr_r', fromPointId: 'jpr_tr', toPointId: 'jpr_mr', type: 'line', name: 'Pocket Right' },
+        { id: 'e_jpr_br', fromPointId: 'jpr_mr', toPointId: 'jpr_b', type: 'line', name: 'Pocket Point R' },
+        { id: 'e_jpr_bl', fromPointId: 'jpr_b', toPointId: 'jpr_ml', type: 'line', name: 'Pocket Point L' },
+        { id: 'e_jpr_l', fromPointId: 'jpr_ml', toPointId: 'jpr_tl', type: 'line', name: 'Pocket Left' },
+      ],
+      position: { x: 1140, y: 1100 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 1,
+      fabricCode: 'FAB_DENIM_RAW',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 20 }, end: { x: 0, y: pocketH - 20 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [
+        { id: 'il_arcuate_2', points: [{ x: -pocketW * 0.4, y: pocketH * 0.4 }, { x: 0, y: pocketH * 0.55 }, { x: pocketW * 0.4, y: pocketH * 0.4 }], type: 'style', name: 'Arcuate Stitch' },
+      ],
+      color: '#3b82f6',
+    };
+
+    // Coin / Watch Pocket (5th pocket)
+    const coinW = 85;
+    const coinH = 95;
+    const coinPocket: PatternPiece = {
+      id: 'jeans_coin_pocket',
+      name: 'Coin / Watch Pocket',
+      category: 'pocket',
+      points: [
+        { id: 'jcp_tl', x: -coinW / 2, y: 0, type: 'corner' },
+        { id: 'jcp_tr', x: coinW / 2, y: 0, type: 'corner' },
+        { id: 'jcp_br', x: coinW / 2, y: coinH, type: 'corner' },
+        { id: 'jcp_bl', x: -coinW / 2, y: coinH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_jcp_t', fromPointId: 'jcp_tl', toPointId: 'jcp_tr', type: 'line', name: 'Coin Pocket Hem' },
+        { id: 'e_jcp_r', fromPointId: 'jcp_tr', toPointId: 'jcp_br', type: 'line', name: 'Coin Pocket R' },
+        { id: 'e_jcp_b', fromPointId: 'jcp_br', toPointId: 'jcp_bl', type: 'line', name: 'Coin Pocket Bottom' },
+        { id: 'e_jcp_l', fromPointId: 'jcp_bl', toPointId: 'jcp_tl', type: 'line', name: 'Coin Pocket L' },
+      ],
+      position: { x: 1360, y: 1100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_DENIM_RAW',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 10 }, end: { x: 0, y: coinH - 10 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#3b82f6',
+    };
+
+    // Fly Shield Facing
+    const flyLen = 200;
+    const flyShield: PatternPiece = {
+      id: 'jeans_fly_shield',
+      name: 'Zipper Fly Shield',
+      category: 'trim',
+      points: [
+        { id: 'jfs_tl', x: -22, y: 0, type: 'corner' },
+        { id: 'jfs_tr', x: 22, y: 0, type: 'corner' },
+        { id: 'jfs_br', x: 22, y: flyLen - 25, type: 'corner' },
+        { id: 'jfs_bot', x: 0, y: flyLen, type: 'smooth' },
+        { id: 'jfs_bl', x: -22, y: flyLen - 25, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_jfs_t', fromPointId: 'jfs_tl', toPointId: 'jfs_tr', type: 'line', name: 'Shield Top' },
+        { id: 'e_jfs_r', fromPointId: 'jfs_tr', toPointId: 'jfs_br', type: 'line', name: 'Shield Right' },
+        { id: 'e_jfs_br', fromPointId: 'jfs_br', toPointId: 'jfs_bot', type: 'line', name: 'Shield Curve R' },
+        { id: 'e_jfs_bl', fromPointId: 'jfs_bot', toPointId: 'jfs_bl', type: 'line', name: 'Shield Curve L' },
+        { id: 'e_jfs_l', fromPointId: 'jfs_bl', toPointId: 'jfs_tl', type: 'line', name: 'Shield Left' },
+      ],
+      position: { x: 1520, y: 1100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_DENIM_RAW',
+      defaultSeamAllowance: 8,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 15 }, end: { x: 0, y: flyLen - 15 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#1e3a8a',
+    };
+
+    return [
+      ...basePieces,
+      yokeLeft,
+      yokeRight,
+      backPocketLeft,
+      backPocketRight,
+      coinPocket,
+      flyShield,
+    ];
+  };
+
+  return {
+    ...base,
+    subcategory: 'Jeans',
+    modelId: 'moto-pants',
+    generatePatterns,
+  };
+}
+
+/**
+ * Generates an authentic Cargo Pants pattern with bellows pleated side cargo pockets,
+ * knee dart reinforcement, reinforced waistband, and top pocket flaps.
+ */
+export function createCargoPantsTemplate(
+  id: string,
+  name: string,
+  fit: 'straight' | 'relaxed' | 'baggy',
+  description: string
+): GarmentTemplate {
+  const base = createPantsTemplate(id, name, fit as any, description);
+
+  const generatePatterns = (m: Record<string, number>): PatternPiece[] => {
+    const basePieces = base.generatePatterns(m);
+
+    const cargoW = 190;
+    const cargoH = 220;
+    const flapH = 65;
+
+    const cargoLeft: PatternPiece = {
+      id: 'cargo_pocket_left',
+      name: 'Left Bellows Cargo Pocket',
+      category: 'pocket',
+      points: [
+        { id: 'cpl_tl', x: -cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cpl_tr', x: cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cpl_br', x: cargoW / 2, y: cargoH, type: 'corner' },
+        { id: 'cpl_bl', x: -cargoW / 2, y: cargoH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_cpl_t', fromPointId: 'cpl_tl', toPointId: 'cpl_tr', type: 'line', name: 'Pocket Top' },
+        { id: 'e_cpl_r', fromPointId: 'cpl_tr', toPointId: 'cpl_br', type: 'line', name: 'Pocket Right' },
+        { id: 'e_cpl_b', fromPointId: 'cpl_br', toPointId: 'cpl_bl', type: 'line', name: 'Pocket Bottom' },
+        { id: 'e_cpl_l', fromPointId: 'cpl_bl', toPointId: 'cpl_tl', type: 'line', name: 'Pocket Left' },
+      ],
+      position: { x: 300, y: 1100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 1,
+      fabricCode: 'FAB_COTTON_TWILL',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 20 }, end: { x: 0, y: cargoH - 20 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [
+        { id: 'il_pleat', points: [{ x: 0, y: 0 }, { x: 0, y: cargoH }], type: 'box-pleat', name: 'Center Box Pleat' },
+      ],
+      color: '#475569',
+    };
+
+    const cargoRight: PatternPiece = {
+      id: 'cargo_pocket_right',
+      name: 'Right Bellows Cargo Pocket',
+      category: 'pocket',
+      points: [
+        { id: 'cpr_tl', x: -cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cpr_tr', x: cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cpr_br', x: cargoW / 2, y: cargoH, type: 'corner' },
+        { id: 'cpr_bl', x: -cargoW / 2, y: cargoH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_cpr_t', fromPointId: 'cpr_tl', toPointId: 'cpr_tr', type: 'line', name: 'Pocket Top' },
+        { id: 'e_cpr_r', fromPointId: 'cpr_tr', toPointId: 'cpr_br', type: 'line', name: 'Pocket Right' },
+        { id: 'e_cpr_b', fromPointId: 'cpr_br', toPointId: 'cpr_bl', type: 'line', name: 'Pocket Bottom' },
+        { id: 'e_cpr_l', fromPointId: 'cpr_bl', toPointId: 'cpr_tl', type: 'line', name: 'Pocket Left' },
+      ],
+      position: { x: 550, y: 1100 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 1,
+      fabricCode: 'FAB_COTTON_TWILL',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 20 }, end: { x: 0, y: cargoH - 20 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [
+        { id: 'il_pleat_r', points: [{ x: 0, y: 0 }, { x: 0, y: cargoH }], type: 'box-pleat', name: 'Center Box Pleat' },
+      ],
+      color: '#475569',
+    };
+
+    const flapLeft: PatternPiece = {
+      id: 'cargo_flap_left',
+      name: 'Cargo Pocket Flap L',
+      category: 'trim',
+      points: [
+        { id: 'cfl_tl', x: -cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cfl_tr', x: cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cfl_br', x: cargoW / 2, y: flapH, type: 'corner' },
+        { id: 'cfl_bl', x: -cargoW / 2, y: flapH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_cfl_t', fromPointId: 'cfl_tl', toPointId: 'cfl_tr', type: 'line', name: 'Flap Sew Edge' },
+        { id: 'e_cfl_r', fromPointId: 'cfl_tr', toPointId: 'cfl_br', type: 'line', name: 'Flap Right' },
+        { id: 'e_cfl_b', fromPointId: 'cfl_br', toPointId: 'cfl_bl', type: 'line', name: 'Flap Edge' },
+        { id: 'e_cfl_l', fromPointId: 'cfl_bl', toPointId: 'cfl_tl', type: 'line', name: 'Flap Left' },
+      ],
+      position: { x: 800, y: 1100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 2,
+      fabricCode: 'FAB_COTTON_TWILL',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 10 }, end: { x: 0, y: flapH - 10 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#334155',
+    };
+
+    const flapRight: PatternPiece = {
+      id: 'cargo_flap_right',
+      name: 'Cargo Pocket Flap R',
+      category: 'trim',
+      points: [
+        { id: 'cfr_tl', x: -cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cfr_tr', x: cargoW / 2, y: 0, type: 'corner' },
+        { id: 'cfr_br', x: cargoW / 2, y: flapH, type: 'corner' },
+        { id: 'cfr_bl', x: -cargoW / 2, y: flapH, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_cfr_t', fromPointId: 'cfr_tl', toPointId: 'cfr_tr', type: 'line', name: 'Flap Sew Edge' },
+        { id: 'e_cfr_r', fromPointId: 'cfr_tr', toPointId: 'cfr_br', type: 'line', name: 'Flap Right' },
+        { id: 'e_cfr_b', fromPointId: 'cfr_br', toPointId: 'cfr_bl', type: 'line', name: 'Flap Edge' },
+        { id: 'e_cfr_l', fromPointId: 'cfr_bl', toPointId: 'cfr_tl', type: 'line', name: 'Flap Left' },
+      ],
+      position: { x: 1040, y: 1100 },
+      rotation: 0,
+      mirror: true,
+      cutQuantity: 2,
+      fabricCode: 'FAB_COTTON_TWILL',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 10 }, end: { x: 0, y: flapH - 10 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#334155',
+    };
+
+    const pocketBagPiece: PatternPiece = {
+      id: 'cargo_pocket_bag',
+      name: 'Side Slant Pocket Bag',
+      category: 'pocket',
+      points: [
+        { id: 'pb_tl', x: -90, y: 0, type: 'corner' },
+        { id: 'pb_tr', x: 90, y: 0, type: 'corner' },
+        { id: 'pb_br', x: 90, y: 240, type: 'corner' },
+        { id: 'pb_bl', x: -90, y: 240, type: 'corner' },
+      ],
+      edges: [
+        { id: 'e_pb_t', fromPointId: 'pb_tl', toPointId: 'pb_tr', type: 'line', name: 'Waist Bag Edge' },
+        { id: 'e_pb_r', fromPointId: 'pb_tr', toPointId: 'pb_br', type: 'line', name: 'Bag Outseam' },
+        { id: 'e_pb_b', fromPointId: 'pb_br', toPointId: 'pb_bl', type: 'line', name: 'Bag Bottom' },
+        { id: 'e_pb_l', fromPointId: 'pb_bl', toPointId: 'pb_tl', type: 'line', name: 'Bag Inseam' },
+      ],
+      position: { x: 1280, y: 1100 },
+      rotation: 0,
+      mirror: false,
+      cutQuantity: 2,
+      fabricCode: 'FAB_COTTON_POPLIN',
+      defaultSeamAllowance: 10,
+      seamAllowanceEnabled: true,
+      notches: [],
+      darts: [],
+      grainline: { start: { x: 0, y: 20 }, end: { x: 0, y: 220 }, hasArrowBothEnds: true, angle: 90 },
+      internalLines: [],
+      color: '#cbd5e1',
+    };
+
+    return [
+      ...basePieces,
+      cargoLeft,
+      cargoRight,
+      flapLeft,
+      flapRight,
+      pocketBagPiece,
+    ];
+  };
+
+  return {
+    ...base,
+    subcategory: 'Cargo Pants',
+    modelId: 'moto-pants',
+    generatePatterns,
   };
 }

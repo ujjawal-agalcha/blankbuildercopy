@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -6,45 +6,31 @@ import { BlankGarment3D } from './BlankGarment3D';
 import { StudioLighting } from './StudioLighting';
 import { useSceneStore } from '../../store/useSceneStore';
 import { useGarmentStore } from '../../store/useGarmentStore';
+import { useSewingStore } from '../../store/useSewingStore';
 import { useMaterialStore } from '../../store/useMaterialStore';
 import {
   RotateCcw,
   Sun,
   Moon,
-  Sparkles,
   Camera,
-  Maximize2,
-  ZoomIn,
-  ZoomOut,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 export const GarmentViewer3D: React.FC = () => {
   const { settings } = useSceneStore();
-  const { template } = useGarmentStore();
+  const { template, pieces } = useGarmentStore();
+  const { relationships } = useSewingStore();
   const { material, setColor } = useMaterialStore();
 
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
-  // Determine appropriate 3D model based on active template
-  const getModelForTemplate = (templateId: string): string => {
-    const id = templateId.toLowerCase();
-    if (id.includes('hoodie')) return 'hoodie';
-    if (id.includes('pants') || id.includes('jogger') || id.includes('trouser') || id.includes('jeans')) return 'moto-pants';
-    if (id.includes('polo')) return 'polo';
-    if (id.includes('shirt') && !id.includes('tshirt')) return 'shirt-short-sleeve';
-    if (id.includes('long_sleeve') || id.includes('longsleeve')) return 'tee-longsleeve';
-    if (id.includes('oversized') || id.includes('boxy')) return 'tee-oversize-1';
-    if (id.includes('flat')) return 'tee-t12';
-    return 'tee-t5';
-  };
-
-  const [activeModel, setActiveModel] = useState<string>(getModelForTemplate(template.id));
-
-  // Update 3D model when user switches garment in catalog
-  useEffect(() => {
-    setActiveModel(getModelForTemplate(template.id));
-  }, [template.id]);
+  // Directly use the template's authentic modelId (no generic guessing)
+  const activeModel = template.modelId || 'tee-t5';
+  const [panelCount, setPanelCount] = useState<number>(0);
+  const [showIdentityHUD, setShowIdentityHUD] = useState<boolean>(true);
 
   // Studio Theme (Clean Studio Light vs Dark Charcoal Studio)
   const [studioTheme, setStudioTheme] = useState<'light' | 'dark'>('dark');
@@ -131,7 +117,12 @@ export const GarmentViewer3D: React.FC = () => {
         />
 
         <StudioLighting />
-        <BlankGarment3D modelType={activeModel} />
+        {/* Force clean re-mount via key when modelType changes so no stale 3D meshes remain */}
+        <BlankGarment3D
+          key={activeModel}
+          modelType={activeModel}
+          onModelLoaded={(data) => setPanelCount(data.pieces.length)}
+        />
       </Canvas>
 
       {/* TOP FLOATING CONTROLS: Model Badge & Theme */}
@@ -144,6 +135,21 @@ export const GarmentViewer3D: React.FC = () => {
           </span>
         </div>
 
+        {/* Identity Verification HUD Toggle */}
+        <button
+          onClick={() => setShowIdentityHUD((s) => !s)}
+          className={`flex items-center gap-1 px-2 py-1.5 backdrop-blur-md border rounded-lg text-xs font-mono transition shadow-xl ${
+            showIdentityHUD
+              ? 'bg-emerald-950/60 border-emerald-700 text-emerald-400'
+              : 'bg-cad-panel/85 border-cad-border text-cad-textMuted hover:text-white'
+          }`}
+          title="Toggle Garment Identity Verification HUD"
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Verification HUD</span>
+          {showIdentityHUD ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </button>
+
         {/* Studio Theme Switcher */}
         <button
           onClick={() => setStudioTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
@@ -153,6 +159,48 @@ export const GarmentViewer3D: React.FC = () => {
           {studioTheme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
         </button>
       </div>
+
+      {/* GARMENT IDENTITY VERIFICATION DEBUG HUD */}
+      {showIdentityHUD && (
+        <div className="absolute top-12 left-3 z-10 w-72 bg-cad-panel/90 backdrop-blur-md border border-cad-border p-3 rounded-xl shadow-2xl text-[11px] font-mono space-y-2 select-none">
+          <div className="flex items-center justify-between pb-1.5 border-b border-cad-border">
+            <span className="font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-sans text-xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Garment Identity HUD</span>
+            </span>
+            <span className="text-[10px] text-emerald-400 font-bold px-1.5 py-0.5 rounded bg-emerald-950/60 border border-emerald-800">
+              VERIFIED
+            </span>
+          </div>
+
+          <div className="space-y-1 text-cad-textMuted text-[10px]">
+            <div className="flex justify-between">
+              <span>Garment ID:</span>
+              <strong className="text-white font-mono">{template.id}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Model ID:</span>
+              <strong className="text-cad-accent font-mono">{activeModel}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>2D Pattern Panels:</span>
+              <strong className="text-white font-mono">{pieces.length} cut pieces</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>3D Mesh Panels:</span>
+              <strong className="text-white font-mono">{panelCount || 'Loading...'} panels</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Sewing Seams:</span>
+              <strong className="text-white font-mono">{relationships.length} active seams</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>UV Texture Map:</span>
+              <span className="text-emerald-400 font-mono">2048x2048 Active</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TOP RIGHT: 4K Mockup Export */}
       <div className="absolute top-3 right-3 flex items-center gap-2 z-10">

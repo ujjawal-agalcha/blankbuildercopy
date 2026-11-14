@@ -51,14 +51,14 @@ export interface Grainline {
 export interface InternalLine {
   id: string;
   points: Point2D[];
-  type: 'fold' | 'crease' | 'pocket-placement' | 'button-guide';
+  type: 'fold' | 'crease' | 'pocket-placement' | 'button-guide' | 'style' | 'box-pleat';
   name?: string;
 }
 
 export interface PatternPiece {
   id: string;
   name: string;
-  category: 'body' | 'sleeve' | 'collar' | 'cuff' | 'pocket' | 'waistband' | 'hood' | 'lining';
+  category: 'body' | 'sleeve' | 'collar' | 'cuff' | 'pocket' | 'waistband' | 'hood' | 'lining' | 'trim';
   points: ControlPoint[];
   edges: Edge2D[];
   position: Point2D; // Placement on 2D cutting table canvas (mm)

@@ -42,6 +42,7 @@ export const LeftSidebar: React.FC = () => {
     setShowNotches,
     showDimensions,
     setShowDimensions,
+    triggerFitAll,
   } = useEditorStore();
 
   const {
@@ -232,9 +233,12 @@ export const LeftSidebar: React.FC = () => {
                   Pattern Tools
                 </span>
                 <button
-                  onClick={resetPatternLayout}
+                  onClick={() => {
+                    resetPatternLayout();
+                    triggerFitAll();
+                  }}
                   className="text-[10px] text-cad-accent hover:underline flex items-center gap-1"
-                  title="Restore default 2D layout"
+                  title="Restore default 2D layout and frame pieces"
                 >
                   <LayoutGrid className="w-3 h-3" />
                   <span>Reset Layout</span>
@@ -324,7 +328,10 @@ export const LeftSidebar: React.FC = () => {
                 Pattern Pieces ({pieces.length})
               </span>
               <button
-                onClick={resetPatternLayout}
+                onClick={() => {
+                  resetPatternLayout();
+                  triggerFitAll();
+                }}
                 className="text-[10px] text-cad-accent hover:underline"
               >
                 Reset Positions
